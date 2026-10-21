@@ -1,6 +1,7 @@
 
-const COOKIE_NAME = "__Host-engineeringportal_session";
-const SESSION_SECONDS = 8 * 60 * 60;
+const COOKIE_NAME = "__Host-engineeringportal_gate";
+const CODE_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
 
 function base64url(bytes) {
   let binary = "";
@@ -13,11 +14,12 @@ function base64url(bytes) {
 
 function decodeBase64url(value) {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+  const padded =
+    normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
   return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
 }
 
-async function sign(value, secret) {
+async function hmac(secret, value) {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -25,51 +27,90 @@ async function sign(value, secret) {
     false,
     ["sign"]
   );
+
   return new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value))
+    await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(value)
+    )
   );
 }
 
-async function createSession(secret) {
+function currentPeriod() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit"
+  }).formatToParts(new Date());
+
+  const year = parts.find(p => p.type === "year").value;
+  const month = parts.find(p => p.type === "month").value;
+
+  return `${year}-${month}`;
+}
+
+function nextMonthBoundary(period) {
+  const [year, month] = period.split("-").map(Number);
+
+  // Taiwan time is UTC+8.
+  return Date.UTC(year, month, 1) - 8 * 60 * 60 * 1000;
+}
+
+async function monthlyCode(secret, period) {
+  const bytes = await hmac(secret, `EngineeringPortal|${period}`);
+
+  return Array.from(
+    { length: 6 },
+    (_, i) => CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length]
+  ).join("");
+}
+
+async function createSession(secret, period) {
+  const exp = Math.floor(nextMonthBoundary(period) / 1000);
+
   const payload = base64url(
-    new TextEncoder().encode(
-      JSON.stringify({ exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS })
-    )
+    new TextEncoder().encode(JSON.stringify({ exp, period }))
   );
-  const signature = base64url(await sign(payload, secret));
-  return `${payload}.${signature}`;
+
+  const signature = base64url(await hmac(secret, payload));
+
+  return { token: `${payload}.${signature}`, exp };
 }
 
 async function isAuthenticated(request, secret) {
-  const cookieHeader = request.headers.get("Cookie") || "";
+  const header = request.headers.get("Cookie") || "";
   const prefix = `${COOKIE_NAME}=`;
-  const cookie = cookieHeader
+
+  const cookie = header
     .split(";")
-    .map(part => part.trim())
-    .find(part => part.startsWith(prefix));
+    .map(s => s.trim())
+    .find(s => s.startsWith(prefix));
 
   if (!cookie) return false;
 
-  const token = cookie.slice(prefix.length);
-  const parts = token.split(".");
+  const parts = cookie.slice(prefix.length).split(".");
   if (parts.length !== 2) return false;
 
   try {
-    const expected = base64url(await sign(parts[0], secret));
+    const expected = base64url(await hmac(secret, parts[0]));
     if (expected !== parts[1]) return false;
 
     const payload = JSON.parse(
       new TextDecoder().decode(decodeBase64url(parts[0]))
     );
 
-    return Number.isFinite(payload.exp) &&
-      payload.exp > Math.floor(Date.now() / 1000);
+    return (
+      payload.period === currentPeriod() &&
+      Number.isFinite(payload.exp) &&
+      payload.exp > Math.floor(Date.now() / 1000)
+    );
   } catch {
     return false;
   }
 }
 
-function response(body, status = 200, headers = {}) {
+function reply(body, status = 200, headers = {}) {
   return new Response(body, {
     status,
     headers: {
@@ -81,127 +122,108 @@ function response(body, status = 200, headers = {}) {
   });
 }
 
-function loginPage(message = "") {
-  return response(`<!doctype html>
-<html lang="zh-Hant">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EngineeringPortal 登入</title>
-<style>
-body{font-family:Arial,sans-serif;max-width:420px;margin:12vh auto;padding:24px;color:#222}
-h1{font-size:24px}label{display:block;margin:16px 0 6px}
-input{box-sizing:border-box;width:100%;padding:12px;font-size:16px}
-button{margin-top:20px;width:100%;padding:12px;font-size:16px;cursor:pointer}
-.error{color:#b00020}
-</style>
-</head>
-<body>
-<h1>EngineeringPortal</h1>
-<p>請登入以存取工程資料。</p>
-<p class="error" role="alert">${message}</p>
-<form method="post" action="/api/login">
-<label for="username">帳號</label>
-<input id="username" name="username" autocomplete="username" required maxlength="128">
-<label for="password">密碼</label>
-<input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024">
-<button type="submit">登入</button>
-</form>
-</body>
-</html>`, 200, {
-  "Content-Type": "text/html; charset=utf-8",
-  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
-});
+function isProtectedPath(path) {
+  return (
+    path === "/modules" ||
+    path.startsWith("/modules/") ||
+    path === "/data" ||
+    path.startsWith("/data/") ||
+    path === "/assets/js" ||
+    path.startsWith("/assets/js/")
+  );
+}
+
+function isInternalFile(path) {
+  return new Set([
+    "/worker.js",
+    "/wrangler.jsonc",
+    "/.gitignore",
+    "/.assetsignore",
+    "/package.json",
+    "/package-lock.json",
+    "/README.md"
+  ]).has(path) || path === "/.git" || path.startsWith("/.git/");
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const path = url.pathname;
 
-    if (request.method === "GET" && path === "/login") {
-      return loginPage();
+    let path;
+    try {
+      path = decodeURIComponent(url.pathname);
+    } catch {
+      return reply("Bad request", 400);
     }
 
-    if (request.method === "POST" && path === "/api/login") {
-      if (!env.PORTAL_USERNAME || !env.PORTAL_PASSWORD || !env.SESSION_SECRET) {
-        return response("登入設定尚未完成。", 503);
+    if (isInternalFile(path)) {
+      return reply("Not found", 404);
+    }
+
+    // Verify the monthly code submitted by index.html.
+    if (path === "/api/verify" && request.method === "POST") {
+      if (!env.SESSION_SECRET) {
+        return reply("Server configuration error", 503);
       }
 
-      const contentType = request.headers.get("Content-Type") || "";
-      if (!contentType.includes("application/x-www-form-urlencoded")) {
-        return response("不支援的請求格式。", 415);
+      if (request.headers.get("Origin") !== url.origin) {
+        return reply("Forbidden", 403);
       }
-
-      let form;
-      try {
-        form = await request.formData();
-      } catch {
-        return response("登入資料格式錯誤。", 400);
-      }
-
-      const username = String(form.get("username") || "");
-      const password = String(form.get("password") || "");
 
       if (
-        username !== env.PORTAL_USERNAME ||
-        password !== env.PORTAL_PASSWORD
+        !(request.headers.get("Content-Type") || "")
+          .toLowerCase()
+          .includes("application/json")
       ) {
-        return loginPage("帳號或密碼錯誤。");
+        return reply("Unsupported content type", 415);
       }
 
-      const token = await createSession(env.SESSION_SECRET);
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return reply("Invalid request", 400);
+      }
 
-      return response("", 303, {
-        "Location": "/",
-        "Set-Cookie": `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`
+      if (
+        typeof body.password !== "string" ||
+        body.password.length > 128
+      ) {
+        return reply("Incorrect password", 401);
+      }
+
+      const period = currentPeriod();
+      const expected = await monthlyCode(env.SESSION_SECRET, period);
+
+      if (body.password !== expected) {
+        return reply("Incorrect password", 401);
+      }
+
+      const session = await createSession(env.SESSION_SECRET, period);
+      const maxAge = Math.max(
+        0,
+        session.exp - Math.floor(Date.now() / 1000)
+      );
+
+      return reply(JSON.stringify({ ok: true }), 200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Set-Cookie":
+          `${COOKIE_NAME}=${session.token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`
       });
     }
 
-    if (request.method === "POST" && path === "/api/logout") {
-      return response("", 303, {
-        "Location": "/login",
-        "Set-Cookie": `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`
-      });
-    }
-
-    if (!env.SESSION_SECRET) {
-      return response("伺服器登入設定尚未完成。", 503);
-    }
-
-    if (!(await isAuthenticated(request, env.SESSION_SECRET))) {
-      if (request.method === "GET" || request.method === "HEAD") {
-        return response("", 302, { "Location": "/login" });
+    // Only engineering resources require the monthly verification.
+    if (isProtectedPath(path)) {
+      if (!env.SESSION_SECRET) {
+        return reply("Server configuration error", 503);
       }
-      return response("需要登入才能存取此資源。", 401);
+
+      if (!(await isAuthenticated(request, env.SESSION_SECRET))) {
+        return reply("", 302, { Location: "/?reauth=1" });
+      }
     }
 
-    if (path === "/login" || path === "/api/login") {
-      return response("", 404);
-    }
-    // Block internal configuration and source files.
-    const blockedPaths = new Set([
-      "/worker.js",
-      "/wrangler.jsonc"
-    ]);
-
-    if (
-      blockedPaths.has(path) ||
-      path.startsWith("/.git/") ||
-      path === "/.git"
-    ) {
-      return response("Not found", 404);
-    }
-    const assetResponse = await env.ASSETS.fetch(request);
-    const headers = new Headers(assetResponse.headers);
-    headers.set("Cache-Control", "no-store");
-    headers.set("X-Content-Type-Options", "nosniff");
-    headers.set("Referrer-Policy", "same-origin");
-
-    return new Response(assetResponse.body, {
-      status: assetResponse.status,
-      statusText: assetResponse.statusText,
-      headers
-    });
+    // Homepage and ordinary public files remain accessible.
+    return env.ASSETS.fetch(request);
   }
 };
