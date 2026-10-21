@@ -199,12 +199,26 @@
     <div class="pwd-card">
       <div class="brand-mark">DT</div>
       <div class="pwd-title">Design Tools</div>
-      <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本月授權碼以存取工程計算模組</div>
-      <input type="password" id="userPwd" class="pwd-input" placeholder="輸入本月授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
+      <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本週授權碼以存取工程計算模組</div>
+      <input type="password" id="userPwd" class="pwd-input" placeholder="輸入 6 位授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
       <button class="btn-login" onclick="verifyPwd()">登入工作區</button>
+      <button class="btn-admin" onclick="openAdminModal()" aria-label="管理員設定" title="管理員設定">⚙</button>
     </div>
   </div>
 
+  <!-- Admin verification -->
+  <div id="adminModal">
+    <div class="admin-card">
+      <div style="font-weight:750; font-size:16px; margin-bottom:7px; color:#111827;">管理員驗證</div>
+      <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後產生並複製本週授權碼</div>
+      <input type="password" id="adminPwdInput" class="admin-input" placeholder="輸入管理密碼" onkeydown="if(event.key==='Enter') submitAdminCheck()">
+      <div class="admin-actions">
+        <button class="btn-confirm" onclick="submitAdminCheck()">確認</button>
+        <button class="btn-cancel" onclick="closeAdminModal()">取消</button>
+      </div>
+    </div>
+  </div>
+  
   <!-- ============================================== -->
   <!-- === NEW: Projects DB Management Modal ======== -->
   <!-- ============================================== -->
@@ -332,11 +346,11 @@
   </div>
 
   <script>
-    // 登入與導覽：由 Cloudflare Worker 在伺服器端驗證本月授權碼。
     let projectDbScriptPromise = null;
 
     function loadProjectDbScript() {
       if (projectDbScriptPromise) return projectDbScriptPromise;
+
       projectDbScriptPromise = new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = "/assets/js/project_db.js";
@@ -351,60 +365,120 @@
     }
 
     async function enterWorkspace() {
-      await loadProjectDbScript();
-      document.getElementById("lockOverlay").style.display = "none";
-      if (location.search) {
+      try {
+        await loadProjectDbScript();
+        document.getElementById("lockOverlay").style.display = "none";
+
         const url = new URL(location.href);
         if (url.searchParams.has("reauth")) {
           url.searchParams.delete("reauth");
           history.replaceState({}, "", url.pathname + url.search + url.hash);
         }
+
+        const firstItem =
+          document.querySelector(".menu-item.active") ||
+          document.querySelector(".menu-item");
+        if (firstItem) loadModule("modules/sim1_basic.html", firstItem);
+      } catch (error) {
+        alert("登入成功，但工程資料庫程式載入失敗，請重新整理頁面。");
       }
-      const firstItem = document.querySelector(".menu-item.active") || document.querySelector(".menu-item");
-      if (firstItem) loadModule("modules/sim1_basic.html", firstItem);
     }
 
     async function verifyPwd() {
       const input = document.getElementById("userPwd").value.trim();
       const button = document.querySelector(".btn-login");
+
       if (!input) {
-        alert("請輸入本月授權碼。");
+        alert("請輸入本週授權碼。");
         return;
       }
+
       if (button) button.disabled = true;
+
       try {
-        const res = await fetch("/api/login", {
+        const response = await fetch("/api/login", {
           method: "POST",
           credentials: "same-origin",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ password: input })
         });
-        if (!res.ok) {
-          alert(res.status === 401 ? "授權碼錯誤，請重新輸入。" : "伺服器驗證失敗，請確認 Cloudflare 設定。");
+
+        if (!response.ok) {
+          alert(response.status === 401
+            ? "授權碼錯誤，請重新輸入。"
+            : "伺服器驗證失敗，請確認 Worker 設定。");
           document.getElementById("userPwd").value = "";
           document.getElementById("userPwd").focus();
           return;
         }
+
         await enterWorkspace();
       } catch (error) {
-        alert("登入或載入工程功能失敗，請確認網路及伺服器設定。");
+        alert("無法連線至登入服務，請確認網路或 Worker 設定。");
       } finally {
         if (button) button.disabled = false;
       }
     }
 
+    function openAdminModal() {
+      document.getElementById("adminModal").style.display = "flex";
+      document.getElementById("adminPwdInput").value = "";
+      document.getElementById("adminPwdInput").focus();
+    }
+
+    function closeAdminModal() {
+      document.getElementById("adminModal").style.display = "none";
+    }
+
+    async function submitAdminCheck() {
+      const adminPassword = document.getElementById("adminPwdInput").value.trim();
+      if (!adminPassword) {
+        alert("請輸入管理密碼。");
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/admin-code", {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: adminPassword })
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          alert(response.status === 401
+            ? "管理員密碼錯誤。"
+            : (data.error || "無法取得本週授權碼，請確認 Worker 設定。"));
+          return;
+        }
+
+        const pwd = data.password;
+        try {
+          await navigator.clipboard.writeText(pwd);
+          alert("本週授權碼為：" + pwd + "\n\n授權碼已複製到剪貼簿。");
+        } catch {
+          alert("本週授權碼為：" + pwd);
+        }
+        closeAdminModal();
+      } catch (error) {
+        alert("無法連線至授權碼服務，請確認網路或 Worker 設定。");
+      }
+    }
+
     async function checkPortalSession() {
       try {
-        const res = await fetch("/api/session", {
+        const response = await fetch("/api/session", {
           method: "GET",
           credentials: "same-origin",
           cache: "no-store"
         });
-        if (!res.ok) return;
-        const data = await res.json();
+        if (!response.ok) return;
+        const data = await response.json();
         if (data.authenticated) await enterWorkspace();
-      } catch (error) {
+      } catch {
         // 驗證服務無法連線時，保留登入視窗。
       }
     }
@@ -415,8 +489,9 @@
       document.getElementById("workFrame").src = url;
     }
 
-    checkPortalSession();
-
+    /* ----------------------------------------------- */
+    /* --- NEW: Projects DB Modal Management Logic --- */
+    /* ----------------------------------------------- */
     function openProjectsDbModal() {
         renderCustomersTable();
         populateModelCustomerSelect();
@@ -542,6 +617,7 @@
             renderModelsTable();
         }
     }
+    checkPortalSession();
   </script>
 </body>
 </html>
