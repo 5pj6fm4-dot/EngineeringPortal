@@ -179,7 +179,19 @@ export default {
     if (path === "/login" || path === "/api/login") {
       return response("", 404);
     }
+    // Block internal configuration and source files.
+    const blockedPaths = new Set([
+      "/worker.js",
+      "/wrangler.jsonc"
+    ]);
 
+    if (
+      blockedPaths.has(path) ||
+      path.startsWith("/.git/") ||
+      path === "/.git"
+    ) {
+      return response("Not found", 404);
+    }
     const assetResponse = await env.ASSETS.fetch(request);
     const headers = new Headers(assetResponse.headers);
     headers.set("Cache-Control", "no-store");
