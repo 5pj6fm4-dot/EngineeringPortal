@@ -380,20 +380,39 @@
       return res;
     }
 
-    function verifyPwd() {
-      var input = document.getElementById('userPwd').value.trim();
-      if (input === getWeeklyPassword()) {
-        sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
-        document.getElementById('lockOverlay').style.display = 'none';
-        var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
-        if (firstItem) loadModule('modules/sim1_basic.html', firstItem);
-      } else {
-        alert('授權碼錯誤，請重新輸入。');
-        document.getElementById('userPwd').value = '';
-        document.getElementById('userPwd').focus();
-      }
+async function verifyPwd() {
+  const input = document.getElementById("userPwd").value.trim();
+
+  try {
+    const res = await fetch("/api/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: input })
+    });
+
+    if (!res.ok) {
+      alert("密碼錯誤或伺服器驗證失敗，請確認本月密碼。");
+      return;
     }
 
+    sessionStorage.setItem(
+      "taigene_portal_auth",
+      "AUTHORIZED_" + Date.now()
+    );
+
+    document.getElementById("lockOverlay").style.display = "none";
+
+    const firstItem =
+      document.querySelector(".menu-item.active") ||
+      document.querySelector(".menu-item");
+
+    if (firstItem) {
+      loadModule("modules/sim1_basic.html", firstItem);
+    }
+  } catch (error) {
+    alert("無法連線至驗證服務，請稍後再試。");
+  }
+}
     function openAdminModal() {
       document.getElementById('adminModal').style.display = 'flex';
       document.getElementById('adminPwdInput').value = '';
