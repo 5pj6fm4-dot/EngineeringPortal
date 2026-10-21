@@ -112,6 +112,16 @@ export default {
 
     if (hiddenPath(path)) return response("Not found", 404);
 
+    // 暫時診斷：只檢查 Secret 是否存在，不會顯示 Secret 的值
+    if (path === "/api/debug-config" && request.method === "GET") {
+    return json({
+    has_ADMIN_PASSWORD: !!env.ADMIN_PASSWORD,
+    has_PORTAL_SEED: !!env.PORTAL_SEED,
+    has_SESSION_SECRET: !!env.SESSION_SECRET,
+    has_ASSETS: !!env.ASSETS
+  });
+}
+    
     if (request.method === "POST" && ["/api/login", "/api/admin-code"].includes(path)) {
       if (request.headers.get("Origin") !== url.origin) return json({ error: "Forbidden" }, 403);
       if (!(request.headers.get("Content-Type") || "").toLowerCase().includes("application/json"))
