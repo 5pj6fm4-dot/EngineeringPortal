@@ -202,24 +202,9 @@
       <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本月授權碼以存取工程計算模組</div>
       <input type="password" id="userPwd" class="pwd-input" placeholder="輸入本月授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
       <button class="btn-login" onclick="verifyPwd()">登入工作區</button>
-      <!-- Admin verification -->
-      <div id="adminModal">
     </div>
   </div>
 
-  <!-- Admin verification -->
-  <div id="adminModal">
-    <div class="admin-card">
-      <div style="font-weight:750; font-size:16px; margin-bottom:7px; color:#111827;">管理員驗證</div>
-      <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後產生並複製本週授權碼</div>
-      <input type="password" id="adminPwdInput" class="admin-input" placeholder="輸入管理密碼" onkeydown="if(event.key==='Enter') submitAdminCheck()">
-      <div class="admin-actions">
-        <button class="btn-confirm" onclick="submitAdminCheck()">確認</button>
-        <button class="btn-cancel" onclick="closeAdminModal()">取消</button>
-      </div>
-    </div>
-  </div>
-  
   <!-- ============================================== -->
   <!-- === NEW: Projects DB Management Modal ======== -->
   <!-- ============================================== -->
@@ -346,93 +331,92 @@
     </main>
   </div>
 
-  <!-- IMPORTANT: This must be placed before the main script block -->
-  <script src="assets/js/project_db.js"></script>
-
   <script>
-    // --- Standard Login & Navigation Logic (No changes) ---
-    function crc32(s) {
-      var c, t = [];
-      for (var n = 0; n < 256; n++) {
-        c = n;
-        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-        t[n] = c;
-      }
-      var crc = -1;
-      for (var i = 0; i < s.length; i++) crc = (crc >>> 8) ^ t[(crc ^ s.charCodeAt(i)) & 0xFF];
-      return (crc ^ (-1)) >>> 0;
+    // 登入與導覽：由 Cloudflare Worker 在伺服器端驗證本月授權碼。
+    let projectDbScriptPromise = null;
+
+    function loadProjectDbScript() {
+      if (projectDbScriptPromise) return projectDbScriptPromise;
+      projectDbScriptPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "/assets/js/project_db.js";
+        script.onload = resolve;
+        script.onerror = () => {
+          projectDbScriptPromise = null;
+          reject(new Error("無法載入工程資料庫程式。"));
+        };
+        document.head.appendChild(script);
+      });
+      return projectDbScriptPromise;
     }
 
-    function getISOWeek() {
-      var d = new Date(); d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-      var w1 = new Date(d.getFullYear(), 0, 4);
-      return 1 + Math.round(((d.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
-    }
-
-    function getWeeklyPassword() {
-      var yr = String(new Date().getFullYear()).slice(-2);
-      var wk = getISOWeek();
-      var wkStr = wk < 10 ? '0' + wk : String(wk);
-      var raw = yr + wkStr + "5pj6fm4";
-      var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-      var res = "";
-      for (var i = 1; i <= 6; i++) res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
-      return res;
-    }
-
-    function verifyPwd() {
-      var input = document.getElementById('userPwd').value.trim();
-      if (input === getWeeklyPassword()) {
-        sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
-        document.getElementById('lockOverlay').style.display = 'none';
-        var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
-        if (firstItem) loadModule('modules/sim1_basic.html', firstItem);
-      } else {
-        alert('授權碼錯誤，請重新輸入。');
-        document.getElementById('userPwd').value = '';
-        document.getElementById('userPwd').focus();
-      }
-    }
-
-    function openAdminModal() {
-      document.getElementById('adminModal').style.display = 'flex';
-      document.getElementById('adminPwdInput').value = '';
-      document.getElementById('adminPwdInput').focus();
-    }
-
-    function closeAdminModal() {
-      document.getElementById('adminModal').style.display = 'none';
-    }
-
-    function submitAdminCheck() {
-      var adminPwd = document.getElementById('adminPwdInput').value.trim();
-      if (adminPwd === "0315") {
-        var pwd = getWeeklyPassword();
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(pwd).then(function () {
-            alert('本週授權碼為：' + pwd + '\n\n授權碼已複製到剪貼簿。');
-          }).catch(function () {
-            alert('本週授權碼為：' + pwd);
-          });
-        } else {
-          alert('本週授權碼為：' + pwd);
+    async function enterWorkspace() {
+      await loadProjectDbScript();
+      document.getElementById("lockOverlay").style.display = "none";
+      if (location.search) {
+        const url = new URL(location.href);
+        if (url.searchParams.has("reauth")) {
+          url.searchParams.delete("reauth");
+          history.replaceState({}, "", url.pathname + url.search + url.hash);
         }
-        closeAdminModal();
-      } else {
-        alert('管理員密碼錯誤。');
+      }
+      const firstItem = document.querySelector(".menu-item.active") || document.querySelector(".menu-item");
+      if (firstItem) loadModule("modules/sim1_basic.html", firstItem);
+    }
+
+    async function verifyPwd() {
+      const input = document.getElementById("userPwd").value.trim();
+      const button = document.querySelector(".btn-login");
+      if (!input) {
+        alert("請輸入本月授權碼。");
+        return;
+      }
+      if (button) button.disabled = true;
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: input })
+        });
+        if (!res.ok) {
+          alert(res.status === 401 ? "授權碼錯誤，請重新輸入。" : "伺服器驗證失敗，請確認 Cloudflare 設定。");
+          document.getElementById("userPwd").value = "";
+          document.getElementById("userPwd").focus();
+          return;
+        }
+        await enterWorkspace();
+      } catch (error) {
+        alert("登入或載入工程功能失敗，請確認網路及伺服器設定。");
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function checkPortalSession() {
+      try {
+        const res = await fetch("/api/session", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.authenticated) await enterWorkspace();
+      } catch (error) {
+        // 驗證服務無法連線時，保留登入視窗。
       }
     }
 
     function loadModule(url, element) {
-      document.querySelectorAll('.menu-item').forEach(function (el) { el.classList.remove('active'); });
-      if (element) element.classList.add('active');
-      document.getElementById('workFrame').src = url;
+      document.querySelectorAll(".menu-item").forEach(el => el.classList.remove("active"));
+      if (element) element.classList.add("active");
+      document.getElementById("workFrame").src = url;
     }
 
-    /* ----------------------------------------------- */
-    /* --- NEW: Projects DB Modal Management Logic --- */
-    /* ----------------------------------------------- */
+    checkPortalSession();
+
     function openProjectsDbModal() {
         renderCustomersTable();
         populateModelCustomerSelect();
