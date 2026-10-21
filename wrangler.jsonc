@@ -8,12 +8,5 @@
     "binding": "ASSETS",
     "run_worker_first": true,
     "not_found_handling": "none"
-  },
-  "secrets": {
-    "required": [
-      "ADMIN_PASSWORD",
-      "PORTAL_SEED",
-      "SESSION_SECRET"
-    ]
   }
 }
