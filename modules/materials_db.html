@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../css/portal-style.css">
+</head>
+<body>
+  <div class="card">
+    <div class="card-title">📝 材料編輯維護</div>
+    <div class="btn-toolbar">
+      <button class="action-btn" id="btnMatAdd" onclick="handleMatAdd()">➕ 新增材料</button>
+      <button class="action-btn btn-secondary" id="btnMatSave" onclick="handleMatSaveEdit()" style="display:none;">💾 儲存修改</button>
+      <button class="action-btn btn-danger" id="btnMatDelete" onclick="handleMatDelete()" style="display:none;">🗑️ 刪除材料</button>
+      <button class="action-btn btn-secondary" onclick="clearMatForm()">🔄 清空/取消修改</button>
+    </div>
+
+    <div class="grid-mat-form" id="matFormContainer">
+      <div class="form-group">
+        <label>材料性質*</label>
+        <input type="text" id="m_type" list="material_types_list" placeholder="請輸入或選擇">
+        <datalist id="material_types_list">
+          <option value="鋼">
+          <option value="鋼板">
+          <option value="不鏽鋼">
+          <option value="矽鋼片">
+          <option value="鋁">
+          <option value="青銅">
+          <option value="黃銅">
+        </datalist>
+      </div>
+      <div class="form-group"><label>材料名稱*</label><input type="text" id="m_name" placeholder="例如: 50CS1300"></div>
+      <div class="form-group"><label>屈服強度 (MPa)</label><input type="number" id="m_yield" value="310"></div>
+      <div class="form-group"><label>抗拉強度 (MPa)</label><input type="number" id="m_tensile" value="450"></div>
+      <div class="form-group"><label>彈性模量 (GPa)</label><input type="number" id="m_young" value="185"></div>
+      <div class="form-group"><label>蒲松比</label><input type="number" id="m_poisson" value="0.30" step="0.01"></div>
+      <div class="form-group"><label>密度 (kg/m3)</label><input type="number" id="m_density" value="7650"></div>
+      <div class="form-group"><label>硬度</label><input type="text" id="m_hardness" value="150HV"></div>
+      <div class="form-group"><label>伸長率 (%)</label><input type="number" id="m_elongation" value="20"></div>
+      <div class="form-group"><label>剪切強度 (MPa)</label><input type="number" id="m_shear" value="230"></div>
+      <div class="form-group"><label>熱膨脹 (1/C)</label><input type="text" id="m_cte" value="1.3e-5"></div>
+      <div class="form-group form-group-span-3">
+        <label>備註說明</label>
+        <textarea id="m_note1" style="min-height: 60px;" placeholder="請輸入備註說明（支援換行）...">馬達定轉子鐵芯</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:10px;">
+    <div class="search-bar">
+      <span style="font-weight: bold; color: #1e3a8a;">🔍 材料快速篩選：</span>
+      <input type="text" id="txtMatSearch" class="search-input" placeholder="鍵入性質、名稱、屈服或備註關鍵字即時篩選..." oninput="filterMaterials()">
+    </div>
+    
+    <div class="card-title">📚 現有材料清單 (已依 性質 ➡️ 名稱 雙重排序，雙擊行編輯)</div>
+    <div class="db-section-large">
+      <table class="db-table" id="matTable">
+        <thead>
+          <tr>
+            <th>性質</th><th>名稱</th><th>屈服 (MPa)</th><th>抗拉 (MPa)</th><th>彈性模量 (GPa)</th>
+            <th>蒲松比</th><th>密度</th><th>硬度</th><th>修改時間</th>
+          </tr>
+        </thead>
+        <tbody id="matTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+  const DEFAULT_MATERIALS = [
+    { rowIndex: 1, data: ["鋼", "45#鋼", 7.85, "197HB", 16, 600, 355, 300, 400, 250, 0.0000117, 460, 0.30, 210, 80, 48, "軸常用碳鋼", "", "預設", "預設"] },
+    { rowIndex: 2, data: ["鋼板", "SPCC", 7.85, "50HRB", 38, 270, 240, 150, 180, 120, 0.0000117, 460, 0.30, 205, 78, 50, "一般冷軋鋼板", "", "預設", "預設"] },
+    { rowIndex: 3, data: ["不鏽鋼", "SUS304", 7.93, "92HRB", 40, 520, 205, 190, 210, 180, 0.0000173, 502, 0.29, 193, 75, 16, "奧氏體不鏽鋼", "", "預設", "預設"] },
+    { rowIndex: 4, data: ["矽鋼片", "50CS1300", 7.65, "150HV", 20, 450, 310, 230, 280, 150, 0.000013, 490, 0.30, 185, 70, 25, "馬達定轉子鐵芯", "", "預設", "預設"] },
+    { rowIndex: 5, data: ["鋁", "6061-T6", 2.70, "95HB", 12, 310, 276, 205, 230, 96, 0.000023, 896, 0.33, 70, 26, 167, "高強度鋁合金", "", "預設", "預設"] }
+  ];
+
+  let materialsCache = [];
+  let editingMatRowIndex = null;
+
+  function sortMaterialsCache() {
+    materialsCache.sort((a, b) => {
+      const typeA = (a.data[0] || "").toLowerCase();
+      const typeB = (b.data[0] || "").toLowerCase();
+      if (typeA !== typeB) return typeA.localeCompare(typeB, 'zh-Hant');
+      const nameA = (a.data[1] || "").toLowerCase();
+      const nameB = (b.data[1] || "").toLowerCase();
+      return nameA.localeCompare(nameB, 'zh-Hant');
+    });
+  }
+
+  function loadLocalMaterials() {
+    const saved = localStorage.getItem('taigene_materials_db_v4');
+    materialsCache = saved ? JSON.parse(saved) : DEFAULT_MATERIALS;
+    if(!saved) localStorage.setItem('taigene_materials_db_v4', JSON.stringify(DEFAULT_MATERIALS));
+    sortMaterialsCache();
+    renderMaterialsTable(materialsCache);
+  }
+
+  function saveLocalMaterials() {
+    sortMaterialsCache();
+    localStorage.setItem('taigene_materials_db_v4', JSON.stringify(materialsCache));
+  }
+
+  function renderMaterialsTable(rows) {
+    const tbody = document.getElementById('matTbody');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    rows.forEach(item => {
+      const tr = document.createElement('tr');
+      const d = item.data;
+      tr.ondblclick = () => loadMaterialForEdit(item.rowIndex, d);
+      tr.innerHTML = `
+        <td>${d[0]}</td><td><b>${d[1]}</b></td><td>${d[6]}</td><td>${d[5]}</td>
+        <td>${d[13]}</td><td>${d[12]}</td><td>${d[2]}</td><td>${d[3]}</td>
+        <td>${d[19] || '-'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filterMaterials() {
+    const kw = document.getElementById('txtMatSearch').value.trim().toLowerCase();
+    if (!kw) { renderMaterialsTable(materialsCache); return; }
+    const filtered = materialsCache.filter(m => {
+      const d = m.data;
+      return d[0].toLowerCase().includes(kw) || d[1].toLowerCase().includes(kw) || d[16].toLowerCase().includes(kw);
+    });
+    renderMaterialsTable(filtered);
+  }
+
+  function handleMatAdd() {
+    const type = document.getElementById('m_type').value;
+    const name = document.getElementById('m_name').value.trim();
+    if (!type || !name) return alert('請填寫材料性質與名稱！');
+
+    const nowStr = new Date().toLocaleString();
+    const data = [
+      type, name,
+      document.getElementById('m_density').value,
+      document.getElementById('m_hardness').value,
+      document.getElementById('m_elongation').value,
+      document.getElementById('m_tensile').value,
+      document.getElementById('m_yield').value,
+      document.getElementById('m_shear').value, "", "",
+      document.getElementById('m_cte').value, "",
+      document.getElementById('m_poisson').value,
+      document.getElementById('m_young').value, "", "",
+      document.getElementById('m_note1').value, "", nowStr, nowStr
+    ];
+
+    materialsCache.push({ rowIndex: Date.now(), data: data });
+    saveLocalMaterials();
+    renderMaterialsTable(materialsCache);
+    clearMatForm();
+    alert('✅ 材料【' + name + '】已成功新增！已同步更新至材料清單與兩大仿真選單！');
+  }
+
+  function loadMaterialForEdit(idx, d) {
+    editingMatRowIndex = idx;
+    document.getElementById('m_type').value = d[0];
+    document.getElementById('m_name').value = d[1];
+    document.getElementById('m_density').value = d[2];
+    document.getElementById('m_hardness').value = d[3];
+    document.getElementById('m_elongation').value = d[4];
+    document.getElementById('m_tensile').value = d[5];
+    document.getElementById('m_yield').value = d[6];
+    document.getElementById('m_shear').value = d[7];
+    document.getElementById('m_cte').value = d[10];
+    document.getElementById('m_poisson').value = d[12];
+    document.getElementById('m_young').value = d[13];
+    document.getElementById('m_note1').value = d[16];
+
+    document.querySelectorAll('#matFormContainer input, #matFormContainer select, #matFormContainer textarea').forEach(inp => inp.classList.add('mat-edit-active'));
+    document.getElementById('btnMatSave').style.display = 'inline-block';
+    document.getElementById('btnMatDelete').style.display = 'inline-block';
+    document.getElementById('btnMatAdd').style.display = 'none';
+  }
+
+  function handleMatSaveEdit() {
+    if (!editingMatRowIndex) return;
+    const item = materialsCache.find(m => m.rowIndex === editingMatRowIndex);
+    if (!item) return;
+    const nowStr = new Date().toLocaleString();
+    item.data[0] = document.getElementById('m_type').value;
+    item.data[1] = document.getElementById('m_name').value.trim();
+    item.data[2] = document.getElementById('m_density').value;
+    item.data[3] = document.getElementById('m_hardness').value;
+    item.data[4] = document.getElementById('m_elongation').value;
+    item.data[5] = document.getElementById('m_tensile').value;
+    item.data[6] = document.getElementById('m_yield').value;
+    item.data[7] = document.getElementById('m_shear').value;
+    item.data[10] = document.getElementById('m_cte').value;
+    item.data[12] = document.getElementById('m_poisson').value;
+    item.data[13] = document.getElementById('m_young').value;
+    item.data[16] = document.getElementById('m_note1').value;
+    item.data[19] = nowStr;
+
+    saveLocalMaterials();
+    renderMaterialsTable(materialsCache);
+    clearMatForm();
+    alert('✅ 材料【' + item.data[1] + '】修改成功！');
+  }
+
+  function handleMatDelete() {
+    if (!editingMatRowIndex) return;
+    if (!confirm('確定要刪除這筆材料規格嗎？')) return;
+    materialsCache = materialsCache.filter(m => m.rowIndex !== editingMatRowIndex);
+    saveLocalMaterials();
+    renderMaterialsTable(materialsCache);
+    clearMatForm();
+    alert('✅ 材料已刪除！');
+  }
+
+  function clearMatForm() {
+    editingMatRowIndex = null;
+    document.querySelectorAll('#matFormContainer input, #matFormContainer textarea').forEach(inp => {
+      inp.value = "";
+      inp.classList.remove('mat-edit-active');
+    });
+    document.getElementById('m_type').classList.remove('mat-edit-active');
+    document.getElementById('btnMatSave').style.display = 'none';
+    document.getElementById('btnMatDelete').style.display = 'none';
+    document.getElementById('btnMatAdd').style.display = 'inline-block';
+  }
+
+  window.onload = function() {
+    loadLocalMaterials();
+  };
+</script>
+</body>
+</html>

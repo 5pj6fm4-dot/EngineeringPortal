@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>孔軸公差與配合計算工具</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- 1. 引入共用客戶資料庫腳本 -->
+<script src="../assets/js/project_db.js"></script>
+<style>
+:root{--bg:#f3f6fa;--card:#fff;--ink:#203047;--muted:#66758a;--line:#d8e0eb;--blue:#1769aa;--blue2:#e8f3ff;--green:#16794b;--red:#b42318;--amber:#8a5a00}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Segoe UI,"Microsoft JhengHei",Arial,sans-serif;color:var(--ink);font-size:14px}
+header{background:#17324f;color:#fff;padding:18px 24px}header h1{font-size:22px;margin:0 0 5px}header p{margin:0;color:#d4e2f0}
+main{max-width:1250px;margin:20px auto;padding:0 16px 40px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+button,.file-label{border:0;border-radius:7px;padding:9px 13px;cursor:pointer;font-weight:600;background:var(--blue);color:#fff;font-size:13px}button.secondary,.file-label.secondary{background:#e6edf5;color:#26394f}button.danger{background:#b42318}button:hover,.file-label:hover{filter:brightness(.96)}input,select,textarea{font:inherit;color:var(--ink);border:1px solid #c8d3e0;border-radius:6px;padding:8px;width:100%;background:#fff}input:focus,select:focus,textarea:focus{outline:2px solid #b8dcff;border-color:var(--blue)}label{display:block;font-weight:600;font-size:12px;color:#53657b;margin:0 0 5px}.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 2px 7px #19324a0a;min-width:0}.span-12{grid-column:span 12}.span-8{grid-column:span 8}.span-6{grid-column:span 6}.span-4{grid-column:span 4}.span-3{grid-column:span 3}.card h2{font-size:16px;margin:0 0 14px}.fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.fields.three{grid-template-columns:repeat(3,minmax(0,1fr))}.fields.two{grid-template-columns:repeat(2,minmax(0,1fr))}.field{min-width:0}.inline{display:flex;gap:7px;align-items:center}.inline>*{min-width:0}.inline input{flex:1}.inline select{width:105px;flex-shrink:0}.hint{font-size:12px;color:var(--muted);line-height:1.5}.status{padding:10px 12px;border-radius:8px;background:#f1f5f9;margin-top:10px;white-space:pre-wrap}.status.good{background:#e7f7ee;color:#12633e}.status.warn{background:#fff4df;color:#805400}.status.bad{background:#feeceb;color:#9b1c14}.result-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.metric{background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:11px}.metric .k{font-size:12px;color:var(--muted);margin-bottom:5px}.metric .v{font-size:18px;font-weight:700;overflow-wrap:anywhere}.metric .u{font-size:11px;color:var(--muted)}
+svg{width:100%;height:auto;display:block;background:#fbfcfe;border:1px solid var(--line);border-radius:8px}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:left;white-space:nowrap}th{background:#f2f6fa;color:#46576c;position:sticky;top:0}tbody tr:hover{background:#f6faff}.empty{text-align:center;color:var(--muted);padding:20px}.tag{display:inline-block;padding:3px 7px;border-radius:99px;background:var(--blue2);color:var(--blue);font-size:11px;font-weight:700}.hidden{display:none!important}.section-note{margin:-5px 0 12px;color:var(--muted);font-size:12px}.footer-note{font-size:11px;color:#718096;margin-top:14px;line-height:1.6}
+#projectNote{min-height:108px;resize:vertical;line-height:1.55;white-space:pre-wrap}
+.note-field{grid-column:span 2}
+@media(max-width:850px){.note-field{grid-column:span 2}}
+@media(max-width:480px){.note-field{grid-column:span 1}}
+@media(max-width:850px){.span-8,.span-6,.span-4,.span-3{grid-column:span 12}.fields,.fields.three,.fields.two{grid-template-columns:repeat(2,minmax(0,1fr))}.result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.fields,.fields.three,.fields.two,.result-grid{grid-template-columns:1fr}header{padding:16px}header h1{font-size:19px}}
+</style>
+</head>
+<body>
+<header><h1>孔軸公差與配合計算工具</h1><p>公差等級查詢・熱膨脹尺寸・配合結果・公差帶示意圖・紀錄管理</p></header>
+<main>
+<div class="toolbar">
+<label class="file-label" for="excelFile">手動匯入（備用）Tolerance zone.xlsx</label><input id="excelFile" type="file" accept=".xlsx,.xls,.csv" class="hidden">
+<button class="secondary" id="downloadTemplate">下載公差資料範本 CSV</button>
+<button id="calculateBtn">重新計算</button><button class="secondary" id="saveBtn">儲存紀錄</button><button class="secondary" id="resetBtn">重置輸入</button>
+</div>
+<div id="dataStatus" class="status warn">正在自動載入共用公差資料庫 Tolerance zone.xlsx…</div>
+<div class="grid">
+<section class="card span-12"><h2>1. 基本資料</h2><div class="fields">
+<div class="field"><label for="customer">客戶</label><select id="customer"></select></div>
+<div class="field"><label for="model">機種</label><select id="model"></select></div>
+<div class="field note-field"><label for="projectNote">說明</label><textarea id="projectNote" rows="4" placeholder="可輸入較完整的設計說明、評估條件、異常原因或待辦事項"></textarea><div class="hint">可多行輸入；欄位右下角可拖曳調整大小。</div></div>
+<div class="field"><label for="nominal">名義尺寸 (mm)</label><input id="nominal" type="number" min="0" step="any" value="10"></div>
+</div></section>
+<section class="card span-6"><h2>2. 軸公差設定 <span class="tag">Shaft</span></h2><p class="section-note">偏差單位為 mm；選擇公差等級自動查表，選擇「自定義」即可直接輸入偏差。</p><div class="fields two">
+<div class="field"><label for="shaftGrade">軸公差等級</label><select id="shaftGrade"></select></div>
+<div class="field"><label>偏差設定</label><div class="hint" style="padding:8px 0">選擇「自定義」即可直接輸入偏差</div></div>
+<div class="field"><label for="shaftUpper">軸上偏差 (es)</label><input id="shaftUpper" type="number" step="any" value="0" disabled></div>
+<div class="field"><label for="shaftLower">軸下偏差 (ei)</label><input id="shaftLower" type="number" step="any" value="0" disabled></div>
+</div><div id="shaftLookup" class="status">尚未查詢。</div></section>
+<section class="card span-6"><h2>3. 孔公差設定 <span class="tag">Hole</span></h2><p class="section-note">偏差單位為 mm；選擇公差等級自動查表，選擇「自定義」即可直接輸入偏差。</p><div class="fields two">
+<div class="field"><label for="holeGrade">孔公差等級</label><select id="holeGrade"></select></div>
+<div class="field"><label>偏差設定</label><div class="hint" style="padding:8px 0">選擇「自定義」即可直接輸入偏差</div></div>
+<div class="field"><label for="holeUpper">孔上偏差 (ES)</label><input id="holeUpper" type="number" step="any" value="0" disabled></div>
+<div class="field"><label for="holeLower">孔下偏差 (EI)</label><input id="holeLower" type="number" step="any" value="0" disabled></div>
+</div><div id="holeLookup" class="status">尚未查詢。</div></section>
+<section class="card span-12"><h2>4. 溫度與熱膨脹設定</h2><div class="fields">
+<div class="field"><label for="highTemp">高溫 (°C)</label><input id="highTemp" type="number" step="any" value="120"></div>
+<div class="field"><label for="lowTemp">低溫 (°C)</label><input id="lowTemp" type="number" step="any" value="-40"></div>
+<div class="field"><label for="holeCTE">孔材料線膨脹係數 (1/°C)</label><input id="holeCTE" type="number" step="any" value="0.0000208"></div>
+<div class="field"><label for="shaftCTE">軸材料線膨脹係數 (1/°C)</label><input id="shaftCTE" type="number" step="any" value="0.0000132"></div>
+</div><p class="hint">熱膨脹尺寸以 20°C 名義尺寸為基準計算：D(T)=D20×[1+α×(T−20)]。孔與軸各自使用其材料膨脹係數。</p></section>
+<section class="card span-12"><h2>5. 計算結果</h2><div class="result-grid" id="results"></div><div id="fitStatus" class="status">請輸入尺寸並計算。</div></section>
+<section class="card span-8"><h2>6. 孔軸公差帶示意圖</h2><p class="section-note">以名義尺寸為零線；圖形會依孔、軸上／下偏差自動縮放。</p><svg id="toleranceChart" viewBox="0 0 760 300" role="img" aria-label="孔軸公差帶示意圖"></svg></section>
+<section class="card span-4"><h2>7. 尺寸極限摘要</h2><div id="limitSummary" class="status">尚未計算。</div><p class="hint">正偏差代表尺寸大於名義尺寸；負偏差代表尺寸小於名義尺寸。最大／最小間隙以「孔尺寸−軸尺寸」計算，負值代表過盈。</p></section>
+<section class="card span-12"><h2>8. 計算紀錄</h2><div class="toolbar"><button class="secondary" id="loadBtn">載入選定紀錄</button><button class="secondary" id="copyBtn">複製選定紀錄</button><button class="danger" id="deleteBtn">刪除選定紀錄</button><button class="secondary" id="exportBtn">匯出紀錄 JSON</button><label class="file-label secondary" for="importRecords">匯入紀錄 JSON</label><input id="importRecords" type="file" accept=".json" class="hidden"></div><div class="table-wrap"><table><thead><tr><th>選取</th><th>客戶／機種</th><th>名義尺寸</th><th>孔等級</th><th>軸等級</th><th>最小間隙 (mm)</th><th>最大間隙 (mm)</th><th>儲存時間</th><th>說明</th></tr></thead><tbody id="recordsBody"></tbody></table></div></section>
+</div>
+<p class="footer-note">注意：此工具用於工程初步評估。正式設計應核對適用標準、尺寸範圍、基準溫度、材料膨脹係數與實際量測結果。瀏覽器紀錄儲存在本機 localStorage；清除瀏覽器資料可能會移除紀錄。</p>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const shaftGrades = ['b9','c9','d8','d9','e7','e8','e9','f6','f7','f8','g5','g6','h5','h6','h7','h8','h9','js5','js6','js7','k5','k6','m5','m6','n5','n6','p6','r6','s6','t6','u6','x6','自定義'];
+const holeGrades = ['B10','C9','C10','D8','D9','D10','E7','E8','E9','F6','F7','F8','G6','G7','H6','H7','H8','H9','H10','JS6','JS7','K6','K7','M6','M7','N6','N7','P6','P7','R7','S7','T7','U7','X7','自定義'];
+// --- MODIFICATION START ---
+// 2. 刪除舊的 const modelMap = { ... };
+// --- MODIFICATION END ---
+let toleranceRows = [], workbookLoaded = false, records = [], selectedRecordId = null, lastCalc = null;
+const STORAGE_KEY='tolerance_calc_records_v1';
+const TOLERANCE_CACHE_KEY='designToolsToleranceRowsV1';
+
+function init(){
+  fillSelect('shaftGrade',shaftGrades); fillSelect('holeGrade',holeGrades);
+  $('shaftGrade').value='h7'; $('holeGrade').value='H7';
+  loadRecords();
+  bindEvents();
+  
+  // --- MODIFICATION START ---
+  // 3. 初始化時，刷新客戶/機種選單
+  refreshCustomerAndModels();
+  // --- MODIFICATION END ---
+  
+  calculate();
+}
+function fillSelect(id,items){const el=$(id);el.innerHTML='';items.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o)});}
+
+function bindEvents(){
+  ['nominal','highTemp','lowTemp','holeCTE','shaftCTE','shaftUpper','shaftLower','holeUpper','holeLower'].forEach(id=>$(id).addEventListener('input',calculate));
+  ['shaftGrade','holeGrade'].forEach(id=>$(id).addEventListener('change',()=>{
+    const side=id==='shaftGrade'?'shaft':'hole';
+    setCustomEnabled(side);
+    lookupGrade(side);
+    calculate();
+  }));
+  
+  // --- MODIFICATION START ---
+  // 4. 修改 change 事件的綁定
+  $('customer').addEventListener('change', refreshCustomerAndModels);
+  // --- MODIFICATION END ---
+  
+  $('excelFile').addEventListener('change',importToleranceFile); $('calculateBtn').addEventListener('click',calculate); $('resetBtn').addEventListener('click',resetForm); $('saveBtn').addEventListener('click',saveRecord);
+  $('loadBtn').addEventListener('click',()=>recordAction('load')); $('copyBtn').addEventListener('click',()=>recordAction('copy')); $('deleteBtn').addEventListener('click',()=>recordAction('delete'));
+  $('exportBtn').addEventListener('click',exportRecords); $('importRecords').addEventListener('change',importRecords); $('downloadTemplate').addEventListener('click',downloadTemplate);
+
+  // --- MODIFICATION START ---
+  // 5. 新增 focus 和 storage 事件監聽，確保同步
+  const custSel = document.getElementById('customer');
+  if (custSel) {
+      custSel.addEventListener('focus', refreshCustomerAndModels);
+  }
+  window.addEventListener('storage', (e) => {
+      if (e.key === 'rd_portal_customer_models') {
+          refreshCustomerAndModels();
+      }
+  });
+  // --- MODIFICATION END ---
+}
+
+// --- MODIFICATION START ---
+// 6. 刪除舊的 updateModels() 函式
+
+// 7. 建立新的統一刷新函式
+function refreshCustomerAndModels() {
+    populateCustomerDropdown('customer');
+    updateModelDropdown('customer', 'model');
+}
+// --- MODIFICATION END ---
+
+function isCustom(side){return $(side+'Grade').value==='自定義';}
+function setCustomEnabled(side){
+  const custom=isCustom(side);
+  [side+'Upper',side+'Lower'].forEach(id=>$(id).disabled=!custom);
+  if(custom){
+    $(side+'Lookup').className='status';
+    $(side+'Lookup').textContent='自定義偏差：請輸入上偏差與下偏差（mm）。';
+  }
+}
+function normGrade(v){return String(v??'').trim().toUpperCase();}
+function parseNum(id){const n=Number($(id).value);return Number.isFinite(n)?n:NaN;}
+function findTolerance(side,nominal,grade){
+  const g=normGrade(grade); if(!toleranceRows.length)return null;
+  for(const r of toleranceRows){
+    const key=normGrade(side==='shaft'?(r.shaftGrade??r.A??r[0]):(r.holeGrade??r.G??r[6]));
+    const lo=Number(side==='shaft'?(r.shaftMin??r.B??r[1]):(r.holeMin??r.H??r[7]));
+    const hi=Number(side==='shaft'?(r.shaftMax??r.C??r[2]):(r.holeMax??r.I??r[8]));
+    const low=Number(side==='shaft'?(r.shaftLowerUm??r.D??r[3]):(r.holeLowerUm??r.J??r[9]));
+    const up=Number(side==='shaft'?(r.shaftUpperUm??r.E??r[4]):(r.holeUpperUm??r.K??r[10]));
+    if(key===g && Number.isFinite(lo)&&Number.isFinite(hi)&&nominal>lo&&nominal<=hi&&Number.isFinite(up)&&Number.isFinite(low))return {upper:up/1000,lower:low/1000,source:r};
+  }
+  return null;
+}
+function lookupGrade(side){
+  const grade=$(side+'Grade').value, nominal=parseNum('nominal'), upperId=side+'Upper',lowerId=side+'Lower',box=$(side+'Lookup');
+  if(grade==='自定義'){
+    setCustomEnabled(side);
+    return;
+  }
+  if(!Number.isFinite(nominal)||nominal<=0){box.className='status warn';box.textContent='請輸入大於 0 的名義尺寸。';return;}
+  const hit=findTolerance(side,nominal,grade);
+  if(!hit){box.className='status warn';box.textContent=workbookLoaded?'找不到符合尺寸範圍與公差等級的資料，請檢查 Excel 欄位／尺寸範圍。':'尚未匯入公差資料；請匯入 Tolerance zone.xlsx，或改用自定義偏差。';return;}
+  $(upperId).value=fmt(hit.upper,6);$(lowerId).value=fmt(hit.lower,6);box.className='status good';box.textContent=`已查表：上偏差 ${fmt(hit.upper,6)} mm；下偏差 ${fmt(hit.lower,6)} mm。`;
+}
+function fmt(n,d=4){return Number.isFinite(n)?n.toFixed(d):'—';}
+function getClearanceLabel(value, isMinimumLimit){
+  if(value >= 0) return isMinimumLimit ? '最小間隙' : '最大間隙';
+  return isMinimumLimit ? '最大過盈' : '最小過盈';
+}
+function getFitType(minClear, maxClear){
+  if(minClear >= 0) return '間隙配合';
+  if(maxClear < 0) return '過盈配合';
+  return '過渡配合';
+}
+function calculate(){
+  const nominal=parseNum('nominal');
+  if(!Number.isFinite(nominal)||nominal<=0){$('fitStatus').className='status bad';$('fitStatus').textContent='名義尺寸必須是大於 0 的數值。';return;}
+  if(!isCustom('shaft'))lookupGrade('shaft');
+  if(!isCustom('hole'))lookupGrade('hole');
+  const es=parseNum('shaftUpper'), ei=parseNum('shaftLower');
+  const ES=parseNum('holeUpper'), EI=parseNum('holeLower');
+  const high=parseNum('highTemp'), low=parseNum('lowTemp');
+  const ah=parseNum('holeCTE'), as=parseNum('shaftCTE');
+  if([es,ei,ES,EI,high,low,ah,as].some(x=>!Number.isFinite(x))){
+    $('fitStatus').className='status bad';
+    $('fitStatus').textContent='請檢查所有偏差與溫度參數，必須為有效數值。';
+    return;
+  }
+  if(es<ei||ES<EI){
+    $('fitStatus').className='status bad';
+    $('fitStatus').textContent='偏差輸入不合理：上偏差必須大於或等於下偏差。';
+    return;
+  }
+  const shaftMax=nominal+es;
+  const shaftMin=nominal+ei;
+  const holeMax=nominal+ES;
+  const holeMin=nominal+EI;
+  const minClear=holeMin-shaftMax;
+  const maxClear=holeMax-shaftMin;
+  const tDim=(d,a,t)=>d*(1+a*(t-20));
+  function calcAtTemperature(temp){
+    const tempHoleMin=tDim(holeMin,ah,temp);
+    const tempHoleMax=tDim(holeMax,ah,temp);
+    const tempShaftMin=tDim(shaftMin,as,temp);
+    const tempShaftMax=tDim(shaftMax,as,temp);
+    return {
+      minClear:tempHoleMin-tempShaftMax,
+      maxClear:tempHoleMax-tempShaftMin,
+      holeMin:tempHoleMin,
+      holeMax:tempHoleMax,
+      shaftMin:tempShaftMin,
+      shaftMax:tempShaftMax
+    };
+  }
+  const hot=calcAtTemperature(high);
+  const cold=calcAtTemperature(low);
+  const hotMinClear=hot.minClear, hotMaxClear=hot.maxClear;
+  const coldMinClear=cold.minClear, coldMaxClear=cold.maxClear;
+  lastCalc={
+    nominal,shaftGrade:$('shaftGrade').value,holeGrade:$('holeGrade').value,
+    shaftUpper:es,shaftLower:ei,holeUpper:ES,holeLower:EI,
+    shaftMin,shaftMax,holeMin,holeMax,minClear,maxClear,
+    high,low,hotClear:hotMinClear,coldClear:coldMinClear,
+    hotMinClear,hotMaxClear,coldMinClear,coldMaxClear,
+    ah,as,customer:$('customer').value,model:$('model').value,note:$('projectNote').value
+  };
+  const metrics=[
+    ['孔最小尺寸',fmt(holeMin),'mm'],
+    ['孔最大尺寸',fmt(holeMax),'mm'],
+    ['軸最小尺寸',fmt(shaftMin),'mm'],
+    ['軸最大尺寸',fmt(shaftMax),'mm'],
+    [`常溫｜${getClearanceLabel(minClear,true)}`,fmt(Math.abs(minClear)),'mm'],
+    [`常溫｜${getClearanceLabel(maxClear,false)}`,fmt(Math.abs(maxClear)),'mm'],
+    [`高溫 ${fmt(high,1)}°C｜${getClearanceLabel(hotMinClear,true)}`,fmt(Math.abs(hotMinClear)),'mm'],
+    [`高溫 ${fmt(high,1)}°C｜${getClearanceLabel(hotMaxClear,false)}`,fmt(Math.abs(hotMaxClear)),'mm'],
+    [`低溫 ${fmt(low,1)}°C｜${getClearanceLabel(coldMinClear,true)}`,fmt(Math.abs(coldMinClear)),'mm'],
+    [`低溫 ${fmt(low,1)}°C｜${getClearanceLabel(coldMaxClear,false)}`,fmt(Math.abs(coldMaxClear)),'mm']
+  ];
+  $('results').innerHTML=metrics.map(([k,v,u])=>`<div class="metric"><div class="k">${escapeHtml(k)}</div><div class="v">${v}</div><div class="u">${u}</div></div>`).join('');
+  const roomFit=getFitType(minClear,maxClear);
+  const hotFit=getFitType(hotMinClear,hotMaxClear);
+  const coldFit=getFitType(coldMinClear,coldMaxClear);
+  let cls=(roomFit==='間隙配合'&&hotFit==='間隙配合'&&coldFit==='間隙配合')?'status good':'status warn';
+  const msg=[
+    `常溫配合判定：${roomFit}`,
+    `高溫（${fmt(high,1)}°C）配合判定：${hotFit}`,
+    `低溫（${fmt(low,1)}°C）配合判定：${coldFit}`,
+    '各項間隙／過盈數值均以正值顯示；名稱依原始尺寸差的正負自動切換。'
+  ].join('\n');
+  $('fitStatus').className=cls;
+  $('fitStatus').textContent=msg;
+  $('limitSummary').innerHTML=`<b>孔（常溫）</b><br>最小：${fmt(holeMin)} mm<br>最大：${fmt(holeMax)} mm<hr><b>軸（常溫）</b><br>最小：${fmt(shaftMin)} mm<br>最大：${fmt(shaftMax)} mm<hr><b>公差</b><br>孔：${fmt(ES-EI)} mm<br>軸：${fmt(es-ei)} mm`;
+  drawChart(lastCalc);
+}
+function drawChart(c){const svg=$('toleranceChart');const vals=[c.shaftUpper,c.shaftLower,c.holeUpper,c.holeLower,0];let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<0.005){lo-=0.005;hi+=0.005;}const pad=(hi-lo)*.18;lo-=pad;hi+=pad;const x0=110,x1=725,yTop=42,yBot=246;const y=v=>yBot-(v-lo)/(hi-lo)*(yBot-yTop);let ticks='';for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4;const yy=y(v);ticks+=`<line x1="${x0}" y1="${yy}" x2="${x1}" y2="${yy}" stroke="#e1e7ef"/><text x="${x0-12}" y="${yy+4}" text-anchor="end" font-size="11" fill="#607086">${v.toFixed(4)}</text>`;}
+  const band=(top,bottom,x,color,label)=>{const yt=y(top),yb=y(bottom);return `<rect x="${x}" y="${Math.min(yt,yb)}" width="190" height="${Math.max(2,Math.abs(yb-yt))}" fill="${color}" fill-opacity=".30" stroke="${color}" stroke-width="2"/><text x="${x+95}" y="${Math.min(yt,yb)-8}" text-anchor="middle" font-size="13" font-weight="700" fill="${color}">${label}</text><text x="${x+95}" y="${Math.max(yt,yb)+16}" text-anchor="middle" font-size="11" fill="#34465c">${top.toFixed(4)} / ${bottom.toFixed(4)} mm</text>`;};
+  svg.innerHTML=`<text x="20" y="20" font-size="12" fill="#607086">偏差 (mm)</text>${ticks}<line x1="${x0}" y1="${y(0)}" x2="${x1}" y2="${y(0)}" stroke="#26394f" stroke-width="2" stroke-dasharray="6 4"/><text x="${x1}" y="${y(0)-7}" text-anchor="end" font-size="11" fill="#26394f">名義尺寸零線</text>${band(c.holeUpper,c.holeLower,220,'#1769aa','孔 '+c.holeGrade)}${band(c.shaftUpper,c.shaftLower,485,'#d97706','軸 '+c.shaftGrade)}<text x="215" y="278" font-size="12" fill="#1769aa">孔公差帶</text><text x="480" y="278" font-size="12" fill="#d97706">軸公差帶</text><text x="${x0}" y="296" font-size="10" fill="#607086">名義尺寸：${c.nominal.toFixed(4)} mm；圖中顯示相對名義尺寸的偏差</text>`;
+}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function normalizeToleranceRows(rows){
+  return rows.slice(1)
+    .filter(r=>r && r.some(v=>v!==null && v!==''))
+    .map(r=>({A:r[0],B:r[1],C:r[2],D:r[3],E:r[4],G:r[6],H:r[7],I:r[8],J:r[9],K:r[10]}));
+}
+function applyToleranceRows(rows, sourceLabel){
+  if(!rows.length) throw new Error('工作表沒有可讀取的公差資料，請檢查第一列標題與資料欄位。');
+  toleranceRows=rows;workbookLoaded=true;
+  $('dataStatus').className='status good';
+  $('dataStatus').textContent=`已自動／手動載入公差資料：${sourceLabel}；資料列數 ${rows.length}。欄位假設：軸 A:E、孔 G:K。`;
+  lookupGrade('shaft');lookupGrade('hole');calculate();
+}
+async function loadToleranceExcelAuto(){
+  const status=$('dataStatus');
+  status.className='status warn';
+  status.textContent='正在載入公差資料…';
+  try{
+    const cached=localStorage.getItem(TOLERANCE_CACHE_KEY);
+    if(cached){
+      const parsed=JSON.parse(cached);
+      if(Array.isArray(parsed.rows)&&parsed.rows.length){
+        applyToleranceRows(parsed.rows,`${parsed.sourceLabel||'上次匯入的公差資料'}（本機快取）`);
+        return;
+      }
+    }
+  }catch(err){console.warn('讀取公差資料快取失敗，改嘗試讀取 Excel：',err);}
+  if(!window.XLSX){
+    status.className='status warn';
+    status.textContent='尚無可用的公差資料快取，且 Excel 讀取套件未載入。請手動匯入一次，之後會自動使用本機快取。';
+    return;
+  }
+  const candidates=['../Data/Tolerance%20zone.xlsx','../Tolerance%20zone.xlsx'];
+  let lastError=null;
+  for(const path of candidates){
+    try{
+      const response=await fetch(path,{cache:'no-store'});
+      if(!response.ok) throw new Error(`${path}：HTTP ${response.status}`);
+      const buffer=await response.arrayBuffer();
+      const wb=XLSX.read(buffer,{type:'array'});
+      const sheetName=wb.SheetNames.find(n=>/tolerance\s*zone/i.test(n))||wb.SheetNames[0];
+      if(!sheetName) throw new Error('Excel 檔案內沒有工作表。');
+      const rows=normalizeToleranceRows(XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:null}));
+      localStorage.setItem(TOLERANCE_CACHE_KEY,JSON.stringify({rows,sourceLabel:`${path} / ${sheetName}`,cachedAt:new Date().toISOString()}));
+      applyToleranceRows(rows,`${path} / ${sheetName}`);
+      return;
+    }catch(err){lastError=err;}
+  }
+  status.className='status warn';
+  if(location.protocol==='file:'){
+    status.textContent='尚未建立公差資料快取。因目前直接以 file:// 開啟，瀏覽器不允許網頁自行讀取 Excel。請手動匯入 Tolerance zone.xlsx 一次；匯入成功後會保存公差資料快取，下次開啟將自動載入，不必再按匯入。若 Excel 有更新，再手動匯入一次即可。';
+  }else{
+    status.textContent='自動讀取 Excel 失敗：'+(lastError?.message||'無法讀取檔案')+'。請確認檔案位於 Data/Tolerance zone.xlsx；也可手動匯入一次，之後會使用本機快取。';
+  }
+}
+async function importToleranceFile(e){const file=e.target.files?.[0];if(!file)return;try{let rows;if(file.name.toLowerCase().endsWith('.csv')){rows=parseCSV(await file.text());}else{if(!window.XLSX)throw new Error('Excel 讀取套件未載入。請確認網路可連線，或提供本機 SheetJS 套件。');const data=await file.arrayBuffer();const wb=XLSX.read(data,{type:'array'});const sheetName=wb.SheetNames.find(n=>/tolerance\s*zone/i.test(n))||wb.SheetNames[0];const ws=wb.Sheets[sheetName];rows=normalizeToleranceRows(XLSX.utils.sheet_to_json(ws,{header:1,defval:null}));}
+  localStorage.setItem(TOLERANCE_CACHE_KEY,JSON.stringify({rows,sourceLabel:file.name,cachedAt:new Date().toISOString()}));
+  applyToleranceRows(rows,file.name+'（已保存本機快取）');}catch(err){$('dataStatus').className='status bad';$('dataStatus').textContent='匯入失敗：'+err.message;}e.target.value='';}
+function parseCSV(text){const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());return lines.slice(1).map(line=>{const a=line.split(',');return {A:a[0],B:a[1],C:a[2],D:a[3],E:a[4],G:a[6],H:a[7],I:a[8],J:a[9],K:a[10]};});}
+function downloadTemplate(){const csv='軸公差等級,軸尺寸下界(mm),軸尺寸上界(mm),軸上偏差(µm),軸下偏差(µm),備註,孔公差等級,孔尺寸下界(mm),孔尺寸上界(mm),孔上偏差(µm),孔下偏差(µm)\n';downloadBlob(csv,'tolerance_zone_template.csv','text/csv;charset=utf-8');}
+function downloadBlob(content,name,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
+function snapshot(){calculate();return {...lastCalc,id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),savedAt:new Date().toLocaleString()};}
+function saveRecord(){const r=snapshot();if(!r)return;const existing=records.findIndex(x=>x.id===selectedRecordId);if(existing>=0&&confirm('要取代目前選定的紀錄嗎？\n按「確定」取代；按「取消」新增一筆。'))records[existing]={...r,id:selectedRecordId};else records.unshift(r);selectedRecordId=records[0]?.id||null;persistRecords();renderRecords();}
+function loadRecords(){try{records=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}catch{records=[];}renderRecords();}
+function persistRecords(){localStorage.setItem(STORAGE_KEY,JSON.stringify(records));}
+function renderRecords(){const body=$('recordsBody');if(!records.length){body.innerHTML='<tr><td colspan="9" class="empty">尚無紀錄，按「儲存紀錄」新增。</td></tr>';return;}body.innerHTML=records.map(r=>`<tr><td><input aria-label="選取紀錄" type="radio" name="recordSelect" value="${escapeHtml(r.id)}" ${r.id===selectedRecordId?'checked':''} style="width:auto" onchange="selectRecord('${escapeHtml(r.id)}')"></td><td>${escapeHtml(r.customer)} / ${escapeHtml(r.model)}</td><td>${fmt(Number(r.nominal))}</td><td>${escapeHtml(r.holeGrade)}</td><td>${escapeHtml(r.shaftGrade)}</td><td>${fmt(Number(r.minClear))}</td><td>${fmt(Number(r.maxClear))}</td><td>${escapeHtml(r.savedAt||'')}</td><td>${escapeHtml(r.note||'')}</td></tr>`).join('');}
+window.selectRecord=id=>{selectedRecordId=id;};
+function recordAction(action){const idx=records.findIndex(r=>r.id===selectedRecordId);if(idx<0){alert('請先選取一筆紀錄。');return;}const r=records[idx];if(action==='delete'){if(confirm('確定刪除此筆紀錄？')){records.splice(idx,1);selectedRecordId=null;persistRecords();renderRecords();}}else{applyRecord(r);if(action==='copy'){selectedRecordId=null;alert('已載入選定紀錄的資料。修改後按「儲存紀錄」可新增副本。');}}}
+function applyRecord(r){
+    // --- MODIFICATION START ---
+    refreshCustomerAndModels();
+    // --- MODIFICATION END ---
+    $('customer').value=r.customer||'無';
+    refreshCustomerAndModels(); // update models based on new customer
+    $('model').value=r.model||'無';
+    $('projectNote').value=r.note||'';
+    $('nominal').value=r.nominal;
+    $('shaftGrade').value=shaftGrades.includes(r.shaftGrade)?r.shaftGrade:'自定義';
+    $('holeGrade').value=holeGrades.includes(r.holeGrade)?r.holeGrade:'自定義';
+    setCustomEnabled('shaft');setCustomEnabled('hole');
+    $('shaftUpper').value=r.shaftUpper;
+    $('shaftLower').value=r.shaftLower;
+    $('holeUpper').value=r.holeUpper;
+    $('holeLower').value=r.holeLower;
+    $('highTemp').value=r.high;
+    $('lowTemp').value=r.low;
+    $('holeCTE').value=r.ah;
+    $('shaftCTE').value=r.as;
+    calculate();
+}
+function resetForm(){if(!confirm('重置目前輸入值？已儲存的紀錄不會刪除。'))return;
+    $('projectNote').value='';
+    $('nominal').value=10;
+    $('shaftGrade').value='h7';$('holeGrade').value='H7';
+    $('shaftUpper').value=0;$('shaftLower').value=0;
+    $('holeUpper').value=0;$('holeLower').value=0;
+    setCustomEnabled('shaft');setCustomEnabled('hole');
+    $('highTemp').value=120;$('lowTemp').value=-40;
+    $('holeCTE').value=.0000208;$('shaftCTE').value=.0000132;
+    // --- MODIFICATION START ---
+    refreshCustomerAndModels();
+    $('customer').value='無';
+    refreshCustomerAndModels(); // Reset models as well
+    // --- MODIFICATION END ---
+    setCustomEnabled('shaft');setCustomEnabled('hole');
+    calculate();
+}
+function exportRecords(){downloadBlob(JSON.stringify(records,null,2),'tolerance_calc_records.json','application/json;charset=utf-8');}
+function importRecords(e){const f=e.target.files?.[0];if(!f)return;f.text().then(t=>{const parsed=JSON.parse(t);if(!Array.isArray(parsed))throw new Error('格式必須是 JSON 陣列');records=parsed;persistRecords();renderRecords();alert('紀錄匯入完成。');}).catch(err=>alert('匯入失敗：'+err.message)).finally(()=>e.target.value='');}
+init();
+loadToleranceExcelAuto();
+</script>
+</body>
+</html>
+

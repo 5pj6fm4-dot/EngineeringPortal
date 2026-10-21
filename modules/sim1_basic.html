@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../css/portal-style.css">
+  <!-- 1. 引入共用客戶資料庫腳本 -->
+  <script src="../assets/js/project_db.js"></script>
+<style>
+.sim1-visual-wrap{width:100%;overflow-x:auto}#sim1DimensionSvg{display:block;width:100%;min-width:560px;height:auto;max-height:430px}.sim1-visual-note{font-size:12px;color:#64748b;line-height:1.6;margin-top:8px}@media(max-width:700px){#sim1DimensionSvg{min-width:600px}}
+.radio-group { flex: 1; flex-wrap: nowrap; min-width: 0; gap: 8px; }
+.form-group .radio-group label { width: auto; flex-shrink: 0; display: inline-flex; align-items: center; white-space: nowrap; }
+.form-group .radio-group input[type="radio"] { width: auto; margin: 0 3px 0 0; }
+</style>
+</head>
+<body>
+
+  <div class="btn-toolbar">
+    <button class="action-btn" onclick="handleSaveRecordSim1()">💾 儲存紀錄</button>
+    <button class="action-btn btn-secondary" onclick="handleEditRecordSim1()">✏️ 帶入選定紀錄</button>
+    <button class="action-btn btn-danger" onclick="handleDeleteRecordSim1()">🗑️ 刪除選定紀錄</button>
+    <button class="action-btn btn-secondary" onclick="resetFormSim1()">🔄 清空重置</button>
+  </div>
+
+  <div class="main-grid">
+    <!-- 軸參數 -->
+    <div class="card">
+      <div class="card-title">🔩 軸 (Shaft) 設定</div>
+      <div class="form-group">
+        <label>材料性質</label>
+        <select id="cmbShaftMatTypeSim1" onchange="onMaterialDropdownChange('sim1', true)"></select>
+      </div>
+      <div class="form-group">
+        <label>材料名稱</label>
+        <select id="cmbShaftMatNameSim1" onchange="applySelectedMaterialProperties('sim1')"></select>
+      </div>
+      <div class="form-group">
+        <label>軸外徑 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftODSim1" value="52.0000" step="0.01" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>外徑公差 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftODToleranceSim1" value="0.0300" step="0.005" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>公差類型</label>
+        <div class="radio-group">
+          <label><input type="radio" name="shaftTolSim1" value="both" checked onchange="calcSim1()"> ±公差</label>
+          <label><input type="radio" name="shaftTolSim1" value="pos" onchange="calcSim1()"> +公差</label>
+          <label><input type="radio" name="shaftTolSim1" value="neg" onchange="calcSim1()"> -公差</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>軸內徑 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftIDNearly0Sim1" value="46.4000" step="0.01" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>彈性模數 (GPa)</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftYoungModulusSim1" value="210" step="1" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>蒲松比</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftPoissonRatioSim1" value="0.30" step="0.01" oninput="calcSim1()">
+        </div>
+      </div>
+    </div>
+
+    <!-- 孔參數 -->
+    <div class="card">
+      <div class="card-title">🕳️ 孔 (Hole) 設定</div>
+      <div class="form-group">
+        <label>材料性質</label>
+        <select id="cmbHoleMatTypeSim1" onchange="onMaterialDropdownChange('sim1_hole', true)"></select>
+      </div>
+      <div class="form-group">
+        <label>材料名稱</label>
+        <select id="cmbHoleMatNameSim1" onchange="applySelectedMaterialProperties('sim1_hole')"></select>
+      </div>
+      <div class="form-group">
+        <label>孔內徑 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleIDSim1" value="51.9400" step="0.01" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>內徑公差 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleIDToleranceSim1" value="0.0150" step="0.005" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>公差類型</label>
+        <div class="radio-group">
+          <label><input type="radio" name="holeTolSim1" value="both" checked onchange="calcSim1()"> ±公差</label>
+          <label><input type="radio" name="holeTolSim1" value="pos" onchange="calcSim1()"> +公差</label>
+          <label><input type="radio" name="holeTolSim1" value="neg" onchange="calcSim1()"> -公差</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>孔外徑 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleODSim1" value="54.3400" step="0.01" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>彈性模數 (GPa)</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleYoungModulusSim1" value="185" step="1" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>蒲松比</label>
+        <div class="input-box">
+          <input type="number" id="txtHolePoissonRatioSim1" value="0.30" step="0.01" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>摩擦係數 (μ)</label>
+        <div class="input-box">
+          <input type="number" id="txtFrictionSim1" value="0.15" step="0.01" oninput="calcSim1()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>干涉長度 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtInterferenceLenSim1" value="20.0" step="0.5" oninput="calcSim1()">
+        </div>
+      </div>
+    </div>
+
+    <!-- 輸出與分析結果 -->
+    <div class="card">
+      <div class="card-title">📊 專案與分析結果</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+        <div class="form-group">
+          <label style="width:70px;">客戶名稱</label>
+          <select id="cboCustomerSim1" onchange="onCustomerChangeSim1()"></select>
+        </div>
+        <div class="form-group">
+          <label style="width:70px;">機種名稱</label>
+          <select id="cboModelSim1"></select>
+        </div>
+      </div>
+      <div class="form-group" style="align-items:flex-start;">
+        <label style="width:70px; margin-top:4px;">專案說明</label>
+        <textarea id="txtProjectNoteSim1" placeholder="輸入設計說明..."></textarea>
+      </div>
+      <table class="res-table">
+        <tr><th>分析項目</th><th>Max</th><th>Min</th><th>Avg</th></tr>
+        <tr><th>干涉量 (mm)</th><td id="res_IntMaxSim1">0</td><td id="res_IntMinSim1">0</td><td id="res_IntAvgSim1">0</td></tr>
+        <tr><th>干涉面壓 (MPa)</th><td id="res_StressMaxSim1">0</td><td id="res_StressMinSim1">0</td><td id="res_StressAvgSim1">0</td></tr>
+        <tr><th>插入力 (N)</th><td id="res_ForceMaxSim1">0</td><td id="res_ForceMinSim1">0</td><td id="res_ForceAvgSim1">0</td></tr>
+        <tr><th>傳遞扭矩 (N·m)</th><td id="res_TorqueMaxSim1">0</td><td id="res_TorqueMinSim1">0</td><td id="res_TorqueAvgSim1">0</td></tr>
+      </table>
+      <div style="font-weight:bold; margin-top:8px; font-size:12px; color:#1e3a8a;">拉梅應力分析 (Lamé Stress Analysis)</div>
+      <table class="res-table">
+        <tr>
+          <th style="width:75px;">位置</th>
+          <th>徑向應力</th>
+          <th>環向應力</th>
+          <th>等效應力</th>
+          <th style="width:85px; text-align:center;">評估(80%)</th>
+        </tr>
+        <tr>
+          <td>軸外徑 (OD)</td>
+          <td id="res_ShaftOD_RadSim1">0 MPa</td>
+          <td id="res_ShaftOD_ShearSim1">0 MPa</td>
+          <td id="res_ShaftOD_VMSim1">0 MPa</td>
+          <td id="status_ShaftODSim1" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>軸內徑 (ID)</td>
+          <td id="res_ShaftID_RadSim1">0 MPa</td>
+          <td id="res_ShaftID_ShearSim1">0 MPa</td>
+          <td id="res_ShaftID_VMSim1">0 MPa</td>
+          <td id="status_ShaftIDSim1" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>孔內徑 (ID)</td>
+          <td id="res_HoleID_RadSim1">0 MPa</td>
+          <td id="res_HoleID_ShearSim1">0 MPa</td>
+          <td id="res_HoleID_VMSim1">0 MPa</td>
+          <td id="status_HoleIDSim1" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>孔外徑 (OD)</td>
+          <td id="res_HoleOD_RadSim1">0 MPa</td>
+          <td id="res_HoleOD_ShearSim1">0 MPa</td>
+          <td id="res_HoleOD_VMSim1">0 MPa</td>
+          <td id="status_HoleODSim1" style="text-align:center;">-</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card sim1-visual-card" style="grid-column:1 / -1; margin-top:10px;">
+    <div class="card-title">📐 軸與孔剖面示意圖（依輸入尺寸即時更新）</div>
+    <div class="sim1-visual-wrap">
+      <svg id="sim1DimensionSvg" viewBox="0 0 760 330" role="img" aria-label="軸與孔側視剖面干涉示意圖">
+        <defs>
+          <pattern id="sim1ShaftPattern" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,8 L8,0" stroke="#475569" stroke-width="1" opacity=".35"/></pattern>
+          <pattern id="sim1HolePattern" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,0 L8,8" stroke="#0284c7" stroke-width="1" opacity=".32"/></pattern>
+          <marker id="sim1Arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto-start-reverse"><path d="M0,0 L7,3.5 L0,7 z" fill="#334155"/></marker>
+        </defs>
+        <rect x="1" y="1" width="758" height="328" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+        <text x="20" y="25" font-size="14" font-weight="700" fill="#0f172a">軸與孔側視剖面（軸向組裝示意）</text>
+        <line x1="70" y1="165" x2="540" y2="165" stroke="#94a3b8" stroke-dasharray="6 4"/>
+        
+        <!-- 孔／外殼剖面材料 -->
+        <rect id="sim1HousingTop" x="85" y="58" width="430" height="50" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+        <rect id="sim1HousingTopHatch" x="85" y="58" width="430" height="50" fill="url(#sim1HolePattern)"/>
+        <rect id="sim1HousingBottom" x="85" y="222" width="430" height="50" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+        <rect id="sim1HousingBottomHatch" x="85" y="222" width="430" height="50" fill="url(#sim1HolePattern)"/>
+        
+        <!-- 軸本體 -->
+        <rect id="sim1ShaftBody" x="55" y="105" width="490" height="120" rx="5" fill="#cbd5e1" stroke="#475569" stroke-width="2"/>
+        <rect id="sim1ShaftHatch" x="55" y="105" width="490" height="120" rx="5" fill="url(#sim1ShaftPattern)"/>
+        
+        <!-- 過盈區：軸超出孔內徑的部分 -->
+        <rect id="sim1InterferenceTop" x="85" y="105" width="430" height="0" fill="#ef4444" opacity=".82"/>
+        <rect id="sim1InterferenceBottom" x="85" y="225" width="430" height="0" fill="#ef4444" opacity=".82"/>
+        <line x1="85" y1="58" x2="85" y2="272" stroke="#0284c7" stroke-width="1.5"/>
+        <line x1="515" y1="58" x2="515" y2="272" stroke="#0284c7" stroke-width="1.5"/>
+        <line id="sim1DimShaftOD" x1="565" y1="105" x2="565" y2="225" stroke="#047857" stroke-width="1.6" marker-start="url(#sim1Arrow)" marker-end="url(#sim1Arrow)"/>
+        <line id="sim1DimHoleID" x1="600" y1="108" x2="600" y2="222" stroke="#0284c7" stroke-width="1.6" marker-start="url(#sim1Arrow)" marker-end="url(#sim1Arrow)"/>
+        <text id="sim1LabelShaftOD" x="575" y="145" font-size="12" font-weight="700" fill="#047857">軸 OD 52.0000 mm</text>
+        <text id="sim1LabelHoleID" x="610" y="185" font-size="12" font-weight="700" fill="#0369a1">孔 ID 51.9400 mm</text>
+        
+        <!-- 💡 解決重疊：左上方文字座標安全分流，一左一右，不論數值多大均 100% 互不重疊 -->
+        <text x="20" y="48" font-size="12" font-weight="700" fill="#0369a1">孔／外殼（藍色剖面線）</text>
+        <text id="sim1ValueHoleOD" x="185" y="48" font-size="12" font-weight="700" fill="#0284c7">孔外徑 OD：54.3400 mm</text>
+
+        <text x="85" y="294" font-size="12" font-weight="700" fill="#475569">軸（灰色）</text>
+        <text id="sim1ValueShaftOD" x="20" y="312" font-size="12" fill="#334155">軸外徑 OD：52.0000 mm</text>
+        <text id="sim1ValueShaftID" x="220" y="312" font-size="12" fill="#334155">軸內徑 ID：46.4000 mm</text>
+        <text id="sim1ValueHoleID" x="420" y="312" font-size="12" fill="#0369a1">孔內徑 ID：51.9400 mm</text>
+        
+        <text id="sim1ValueIntMax" x="610" y="55" font-size="12" font-weight="700" fill="#b91c1c">最大：0.0750 mm</text>
+        <text id="sim1ValueIntMin" x="610" y="75" font-size="12" font-weight="700" fill="#0369a1">最小：0.0050 mm</text>
+        <text id="sim1FitStatus" x="610" y="98" font-size="11" font-weight="700" fill="#334155">配合狀態：計算中</text>
+      </svg>
+    </div>
+    <div class="sim1-visual-note">注意：改為側視剖面示意。紅色區域表示軸外徑超出孔內徑的幾何干涉；實際干涉量仍以計算結果表為準，圖形不是有限元素分析或真實變形圖。</div>
+  </div>
+
+  <div class="card" style="margin-top:10px;">
+    <div class="card-title">📁 Design List (本機歷史紀錄庫 - 仿真 1)</div>
+    <div class="db-section">
+      <table class="db-table" id="dbTableSim1">
+        <thead>
+          <tr>
+            <th>項目</th><th>客戶</th><th>機種</th><th>說明</th><th>最大干涉</th><th>最小干涉</th>
+            <th>最大面壓</th><th>最大插入力</th><th>最大扭矩</th><th>軸OD等效</th><th>孔ID等效</th>
+          </tr>
+        </thead>
+        <tbody id="dbTbodySim1"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+  let materialsCache = [];
+  let recordsCacheSim1 = [];
+  let selectedRecIndexSim1 = null;
+  function loadLocalMaterials() {
+    const saved = localStorage.getItem('taigene_materials_db_v4');
+    materialsCache = saved ? JSON.parse(saved) : [];
+    populateAllMaterialDropdowns();
+  }
+  function populateAllMaterialDropdowns() {
+    const defaultTypes = ["鋼", "鋼板", "不鏽鋼", "矽鋼片", "鋁", "青銅", "黃銅"];
+    const types = new Set(defaultTypes);
+    
+    // 動態抓取所有已存在的材料性質
+    materialsCache.forEach(item => { 
+      if (item.data && item.data[0]) types.add(item.data[0]); 
+    });
+
+    const fillSelect = (selId) => {
+      const el = document.getElementById(selId);
+      if(!el) return;
+      const curr = el.value;
+      el.innerHTML = '<option value="自定義">自定義</option>';
+      // 排序後加入選單
+      Array.from(types).sort().forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t; opt.textContent = t;
+        el.appendChild(opt);
+      });
+      el.value = curr || "鋼";
+    };
+    fillSelect('cmbShaftMatTypeSim1');
+    fillSelect('cmbHoleMatTypeSim1');
+    onMaterialDropdownChange('sim1', true);
+    onMaterialDropdownChange('sim1_hole', true);
+  }
+function onMaterialDropdownChange(targetKey, isTypeChange) {
+  const isShaft = targetKey === 'sim1';
+
+  const typeSel = document.getElementById(isShaft ? 'cmbShaftMatTypeSim1' : 'cmbHoleMatTypeSim1');
+  const nameSel = document.getElementById(isShaft ? 'cmbShaftMatNameSim1' : 'cmbHoleMatNameSim1');
+  const ymInput = document.getElementById(isShaft ? 'txtShaftYoungModulusSim1' : 'txtHoleYoungModulusSim1');
+  const prInput = document.getElementById(isShaft ? 'txtShaftPoissonRatioSim1' : 'txtHolePoissonRatioSim1');
+
+  if (!typeSel || !nameSel || !ymInput || !prInput) return;
+
+  if (isTypeChange) {
+    const type = typeSel.value;
+    nameSel.innerHTML = '<option value="">請選擇規格名稱</option>';
+
+    if (type === '自定義') {
+      nameSel.disabled = true;
+      ymInput.readOnly = false;
+      ymInput.classList.remove('input-locked');
+      prInput.readOnly = false;
+      prInput.classList.remove('input-locked');
+      calcSim1();
+      return;
+    }
+
+    nameSel.disabled = false;
+
+    const filtered = materialsCache.filter(m => m.data && m.data[0] === type);
+
+    filtered.forEach((m) => {
+      const opt = document.createElement('option');
+      // 使用材料名稱作為 Value，這樣 getSelectedYield 才抓得到
+      opt.value = m.data[1]; 
+      opt.textContent = m.data[1] || '未命名材料';
+      nameSel.appendChild(opt);
+    });
+
+    if (filtered.length > 0) {
+      nameSel.selectedIndex = 1;
+    }
+  }
+
+  const selectedName = nameSel.value;
+  const type = typeSel.value;
+
+  // 用名稱去 materialsCache 找材料 (這解決了原本用 index 找不到的 Bug)
+  const item = materialsCache.find(m => m.data && m.data[0] === type && m.data[1] === selectedName);
+
+  if (item) {
+    ymInput.value = item.data[13] ?? ''; // GPa
+    prInput.value = item.data[12] ?? ''; // 蒲松比
+    ymInput.readOnly = true;
+    ymInput.classList.add('input-locked');
+    prInput.readOnly = true;
+    prInput.classList.add('input-locked');
+  } else {
+    ymInput.value = '';
+    prInput.value = '';
+    ymInput.readOnly = false;
+    ymInput.classList.remove('input-locked');
+    prInput.readOnly = false;
+    prInput.classList.remove('input-locked');
+  }
+
+  calcSim1();
+}
+
+  function applySelectedMaterialProperties(targetKey) {
+    onMaterialDropdownChange(targetKey, false);
+  }
+function updateSim1Diagram() {
+  const n = id => {
+    const e = document.getElementById(id);
+    const v = e ? parseFloat(e.value) : NaN;
+    return Number.isFinite(v) ? v : 0;
+  };
+  const sOD = n('txtShaftODSim1');
+  const sID = n('txtShaftIDNearly0Sim1');
+  const hID = n('txtHoleIDSim1');
+  const hOD = n('txtHoleODSim1');
+  const st = Math.max(0, n('txtShaftODToleranceSim1'));
+  const ht = Math.max(0, n('txtHoleIDToleranceSim1'));
+  const stype =
+    document.querySelector('input[name="shaftTolSim1"]:checked')?.value || 'both';
+  const htype =
+    document.querySelector('input[name="holeTolSim1"]:checked')?.value || 'both';
+  let smax = sOD, smin = sOD;
+  let hmax = hID, hmin = hID;
+  if (stype === 'both') {
+    smax += st;
+    smin -= st;
+  } else if (stype === 'pos') {
+    smax += st;
+  } else if (stype === 'neg') {
+    smin -= st;
+  }
+  if (htype === 'both') {
+    hmax += ht;
+    hmin -= ht;
+  } else if (htype === 'pos') {
+    hmax += ht;
+  } else if (htype === 'neg') {
+    hmin -= ht;
+  }
+  const imax = smax - hmin;
+  const imin = smin - hmax;
+  const f = v => Number.isFinite(v) ? v.toFixed(4) : '—';
+  const txt = (id, v) => {
+    const e = document.getElementById(id);
+    if (e) e.textContent = v;
+  };
+  const set = (id, attrs) => {
+    const e = document.getElementById(id);
+    if (e) {
+      Object.entries(attrs).forEach(([k, v]) => {
+        e.setAttribute(k, String(v));
+      });
+    }
+  };
+  // 更新原有尺寸文字，不更動計算公式
+  txt('sim1LabelShaftOD', `軸 OD ${f(sOD)} mm`);
+  txt('sim1LabelHoleID', `孔 ID ${f(hID)} mm`);
+  txt('sim1ValueShaftOD', `軸外徑 OD：${f(sOD)} mm`);
+  txt('sim1ValueShaftID', `軸內徑 ID：${f(sID)} mm`);
+  txt('sim1ValueHoleID', `孔內徑 ID：${f(hID)} mm`);
+  txt('sim1ValueHoleOD', `孔外徑 OD：${f(hOD)} mm`);
+  txt('sim1ValueIntMax', `最大：${f(imax)} mm`);
+  txt('sim1ValueIntMin', `最小：${f(imin)} mm`);
+  txt(
+    'sim1FitStatus',
+    '配合狀態：' +
+    (imin > 0
+      ? '全尺寸範圍皆為過盈配合'
+      : imax < 0
+        ? '全尺寸範圍皆為間隙配合'
+        : '公差範圍可能同時包含間隙與過盈')
+  );
+
+  // 輸入值無效時，不繪製錯誤的幾何圖形
+  if (sOD <= 0 || hID <= 0 || hOD <= 0) return;
+
+  // 💡 自適應動態縮放演算法：不論是超小的 5 mm 還是大直徑 120 mm，高度自動維持在黃金視覺比例 (90~110 px)，大、小尺寸皆清晰可見
+  const maxD = Math.max(sOD, hID, hOD);
+  const autoScale = Math.min(25, Math.max(0.65, 95 / maxD));
+
+  const cy = 165;
+  const x = 85;
+  const w = 430;
+
+  // 孔外徑：決定藍色外殼的最外側邊界
+  const outerH = hOD * autoScale;
+  const outerTop = cy - outerH / 2;
+  const outerBottom = cy + outerH / 2;
+
+  // 孔內徑：決定外殼內壁位置
+  const holeH = hID * autoScale;
+  const holeTop = cy - holeH / 2;
+  const holeBottom = cy + holeH / 2;
+
+  // 軸外徑
+  const shaftH = sOD * autoScale;
+  const shaftY = cy - shaftH / 2;
+  const shaftBottom = cy + shaftH / 2;
+
+  // 外殼單側壁厚依 (孔外徑 - 孔內徑) / 2 計算，並保證其至少有 16px 讓剖面線清楚，最大 42px 不溢出
+  const rawWall = hOD > hID ? ((hOD - hID) / 2) * autoScale : 22;
+  const wallH = Math.max(16, Math.min(42, rawWall));
+  const topWallY = Math.max(38, holeTop - wallH);
+  const bottomWallY = holeBottom;
+  const bottomWallH = Math.min(42, Math.max(16, wallH));
+
+  // 藍色外殼本體
+  set('sim1HousingTop', {
+    x, y: topWallY, width: w, height: holeTop - topWallY
+  });
+  set('sim1HousingTopHatch', {
+    x, y: topWallY, width: w, height: holeTop - topWallY
+  });
+  set('sim1HousingBottom', {
+    x, y: bottomWallY, width: w, height: bottomWallH
+  });
+  set('sim1HousingBottomHatch', {
+    x, y: bottomWallY, width: w, height: bottomWallH
+  });
+
+  // 灰色軸本體與斜線剖面
+  set('sim1ShaftBody', {
+    x: 55, y: shaftY, width: 490, height: shaftH
+  });
+  set('sim1ShaftHatch', {
+    x: 55, y: shaftY, width: 490, height: shaftH
+  });
+
+  // 紅色區域表示軸外徑超出孔內徑的部分，確保過盈時至少有 3.5px 的視覺提示
+  const isInterference = sOD > hID;
+  const rawOverlap = isInterference ? (shaftH - holeH) / 2 : 0;
+  const visualOverlap = isInterference ? Math.max(3.5, rawOverlap) : 0;
+
+  set('sim1InterferenceTop', {
+    x, y: shaftY, width: w, height: visualOverlap
+  });
+  set('sim1InterferenceBottom', {
+    x, y: holeBottom - (visualOverlap > rawOverlap ? (visualOverlap - rawOverlap) : 0), width: w, height: visualOverlap
+  });
+
+  // 尺寸箭頭隨直徑變化
+  set('sim1DimShaftOD', {
+    y1: shaftY, y2: shaftBottom
+  });
+  set('sim1DimHoleID', {
+    y1: holeTop, y2: holeBottom
+  });
+
+  // 標籤同步移動，避免尺寸變小或變大時文字位置不合
+  const labelShaftY = Math.max(50, Math.min(270, shaftY + shaftH / 2 - 12));
+  const labelHoleY = Math.max(70, Math.min(290, holeTop + holeH / 2 + 14));
+  set('sim1LabelShaftOD', {
+    y: labelShaftY
+  });
+  set('sim1LabelHoleID', {
+    y: labelHoleY
+  });
+}
+
+  function calcSim1() {
+    const Pi = Math.PI;
+    const sOD = parseFloat(document.getElementById('txtShaftODSim1').value) || 0;
+    const sTol = parseFloat(document.getElementById('txtShaftODToleranceSim1').value) || 0;
+    const sTolType = document.querySelector('input[name="shaftTolSim1"]:checked').value;
+    const sID = parseFloat(document.getElementById('txtShaftIDNearly0Sim1').value) || 0.000001;
+    const sE = parseFloat(document.getElementById('txtShaftYoungModulusSim1').value) || 1;
+    const sNu = parseFloat(document.getElementById('txtShaftPoissonRatioSim1').value) || 0.3;
+    const hID = parseFloat(document.getElementById('txtHoleIDSim1').value) || 0;
+    const hTol = parseFloat(document.getElementById('txtHoleIDToleranceSim1').value) || 0;
+    const hTolType = document.querySelector('input[name="holeTolSim1"]:checked').value;
+    const hOD = parseFloat(document.getElementById('txtHoleODSim1').value) || 0;
+    const hE = parseFloat(document.getElementById('txtHoleYoungModulusSim1').value) || 1;
+    const hNu = parseFloat(document.getElementById('txtHolePoissonRatioSim1').value) || 0.3;
+    const mu = parseFloat(document.getElementById('txtFrictionSim1').value) || 0;
+    const intLen = parseFloat(document.getElementById('txtInterferenceLenSim1').value) || 0;
+    let sODMax = sOD, sODMin = sOD;
+    if (sTolType === 'both') { sODMax = sOD + sTol; sODMin = sOD - sTol; }
+    else if (sTolType === 'pos') { sODMax = sOD + sTol; sODMin = sOD; }
+    else if (sTolType === 'neg') { sODMax = sOD; sODMin = sOD - sTol; }
+    let hIDMax = hID, hIDMin = hID;
+    if (hTolType === 'both') { hIDMax = hID + hTol; hIDMin = hID - hTol; }
+    else if (hTolType === 'pos') { hIDMax = hID + hTol; hIDMin = hID; }
+    else if (hTolType === 'neg') { hIDMax = hID; hIDMin = hID - hTol; }
+    const intMax = sODMax - hIDMin;
+    const intMin = sODMin - hIDMax;
+    const intAvg = (intMax + intMin) / 2;
+    updateSim1Diagram();
+    document.getElementById('res_IntMaxSim1').innerText = intMax.toFixed(4);
+    document.getElementById('res_IntMinSim1').innerText = intMin.toFixed(4);
+    document.getElementById('res_IntAvgSim1').innerText = intAvg.toFixed(4);
+    const sOD_m = sOD / 1000, sID_m = sID / 1000, hOD_m = hOD / 1000;
+    const denomHole = (1 / (hE * 1e10)) * (((Math.pow(hOD_m, 2) + Math.pow(sOD_m, 2)) / (Math.pow(hOD_m, 2) - Math.pow(sOD_m, 2))) + hNu);
+    const denomShaft = (1 / (sE * 1e10)) * (((Math.pow(sOD_m, 2) + Math.pow(sID_m, 2)) / (Math.pow(sOD_m, 2) - Math.pow(sID_m, 2))) - sNu);
+    const denomTotal = (sOD_m / 2) * (denomHole + denomShaft) * 1e10;
+    if (denomTotal === 0 || isNaN(denomTotal)) return;
+    const pMax = (intMax / 2) / denomTotal;
+    const pMin = (intMin / 2) / denomTotal;
+    const pAvg = (intAvg / 2) / denomTotal;
+    document.getElementById('res_StressMaxSim1').innerText = pMax.toFixed(4);
+    document.getElementById('res_StressMinSim1').innerText = pMin.toFixed(4);
+    document.getElementById('res_StressAvgSim1').innerText = pAvg.toFixed(4);
+    const contactArea = sOD * Pi * intLen;
+    const fMax = pMax * contactArea * mu;
+    const fMin = pMin * contactArea * mu;
+    const fAvg = pAvg * contactArea * mu;
+    document.getElementById('res_ForceMaxSim1').innerText = fMax.toFixed(2);
+    document.getElementById('res_ForceMinSim1').innerText = fMin.toFixed(2);
+    document.getElementById('res_ForceAvgSim1').innerText = fAvg.toFixed(2);
+    const tMax = ((sOD / 2) * fMax) / 1000;
+    const tMin = ((sOD / 2) * fMin) / 1000;
+    const tAvg = ((sOD / 2) * fAvg) / 1000;
+    document.getElementById('res_TorqueMaxSim1').innerText = tMax.toFixed(2);
+    document.getElementById('res_TorqueMinSim1').innerText = tMin.toFixed(2);
+    document.getElementById('res_TorqueAvgSim1').innerText = tAvg.toFixed(2);
+    // Lame
+    const r_si = sID / 2, r_so = sOD / 2, r_ho = hOD / 2;
+    const lameBShaft = -pMax / ((1 / Math.pow(r_si, 2)) - (1 / Math.pow(r_so, 2)));
+    const lameAShaft = lameBShaft / Math.pow(r_si, 2);
+    const lameBHole = -pMax / ((1 / Math.pow(r_ho, 2)) - (1 / Math.pow(r_so, 2)));
+    const lameAHole = lameBHole / Math.pow(r_ho, 2);
+    const sOD_Shear = lameAShaft + (lameBShaft / Math.pow(r_so, 2));
+    const sOD_Rad = lameAShaft - (lameBShaft / Math.pow(r_so, 2));
+    const sOD_VM = Math.sqrt(Math.pow(sOD_Shear, 2) + Math.pow(sOD_Rad, 2) - (sOD_Shear * sOD_Rad));
+    const sID_Shear = lameAShaft + (lameBShaft / Math.pow(r_si, 2));
+    const sID_Rad = lameAShaft - (lameBShaft / Math.pow(r_si, 2));
+    const sID_VM = Math.sqrt(Math.pow(sID_Shear, 2) + Math.pow(sID_Rad, 2) - (sID_Shear * sID_Rad));
+    const hID_Shear = lameAHole + (lameBHole / Math.pow(r_so, 2));
+    const hID_Rad = lameAHole - (lameBHole / Math.pow(r_so, 2));
+    const hID_VM = Math.sqrt(Math.pow(hID_Rad, 2) - (hID_Rad * hID_Shear) + Math.pow(hID_Shear, 2));
+    const hOD_Shear = lameAHole + (lameBHole / Math.pow(r_ho, 2));
+    const hOD_Rad = lameAHole - (lameBHole / Math.pow(r_ho, 2));
+    const hOD_VM = Math.sqrt(Math.pow(hOD_Rad, 2) - (hOD_Rad * hOD_Shear) + Math.pow(hOD_Shear, 2));
+    document.getElementById('res_ShaftOD_RadSim1').innerText = sOD_Rad.toFixed(1) + " MPa";
+    document.getElementById('res_ShaftOD_ShearSim1').innerText = sOD_Shear.toFixed(1) + " MPa";
+    document.getElementById('res_ShaftOD_VMSim1').innerText = sOD_VM.toFixed(1) + " MPa";
+    document.getElementById('res_ShaftID_RadSim1').innerText = sID_Rad.toFixed(1) + " MPa";
+    document.getElementById('res_ShaftID_ShearSim1').innerText = sID_Shear.toFixed(1) + " MPa";
+    document.getElementById('res_ShaftID_VMSim1').innerText = sID_VM.toFixed(1) + " MPa";
+    document.getElementById('res_HoleID_RadSim1').innerText = hID_Rad.toFixed(1) + " MPa";
+    document.getElementById('res_HoleID_ShearSim1').innerText = hID_Shear.toFixed(1) + " MPa";
+    document.getElementById('res_HoleID_VMSim1').innerText = hID_VM.toFixed(1) + " MPa";
+    document.getElementById('res_HoleOD_RadSim1').innerText = hOD_Rad.toFixed(1) + " MPa";
+    document.getElementById('res_HoleOD_ShearSim1').innerText = hOD_Shear.toFixed(1) + " MPa";
+    document.getElementById('res_HoleOD_VMSim1').innerText = hOD_VM.toFixed(1) + " MPa";
+    const sYield = getSelectedYield(document.getElementById('cmbShaftMatNameSim1').value);
+    const hYield = getSelectedYield(document.getElementById('cmbHoleMatNameSim1').value);
+    checkYieldSim1('status_ShaftODSim1', sOD_VM, sYield, document.getElementById('cmbShaftMatTypeSim1').value === '自定義');
+    checkYieldSim1('status_ShaftIDSim1', sID_VM, sYield, document.getElementById('cmbShaftMatTypeSim1').value === '自定義');
+    checkYieldSim1('status_HoleIDSim1', hID_VM, hYield, document.getElementById('cmbHoleMatTypeSim1').value === '自定義');
+    checkYieldSim1('status_HoleODSim1', hOD_VM, hYield, document.getElementById('cmbHoleMatTypeSim1').value === '自定義');
+  }
+
+  function getSelectedYield(name) {
+    const item = materialsCache.find(m => m.data === name);
+    return item ? (parseFloat(item.data[6]) || 250) : 250;
+  }
+
+  function checkYieldSim1(elId, val, yieldStress, isCustom) {
+    const el = document.getElementById(elId);
+    if (isCustom) {
+      el.innerText = "- (自定義)";
+      el.className = "highlight-neutral";
+    } else {
+      const limit = yieldStress * 0.8;
+      if (val >= limit) {
+        el.innerText = `⚠️ 過載 (≥ ${limit.toFixed(0)})`;
+        el.className = 'highlight-alert';
+      } else {
+        el.innerText = `✅ 安全 (< ${limit.toFixed(0)})`;
+        el.className = 'highlight-pass';
+      }
+    }
+  }
+
+  // --- MODIFICATION START ---
+  // 2. 刪除舊的 const modelMap = { ... };
+  // 3. 重寫客戶/機種連動邏輯
+  function onCustomerChangeSim1() {
+      // 呼叫 project_db.js 中的共用函式
+      updateModelDropdown('cboCustomerSim1', 'cboModelSim1');
+  }
+
+  // 4. 建立一個統一的刷新函式
+  function refreshCustomerAndModels() {
+      populateCustomerDropdown('cboCustomerSim1');
+      updateModelDropdown('cboCustomerSim1', 'cboModelSim1');
+  }
+  // --- MODIFICATION END ---
+
+  function loadLocalRecordsSim1() {
+    const saved = localStorage.getItem('taigene_stress_records_sim1');
+    recordsCacheSim1 = saved ? JSON.parse(saved) : [];
+    renderRecordsTableSim1();
+  }
+
+  function saveLocalRecordsSim1() {
+    localStorage.setItem('taigene_stress_records_sim1', JSON.stringify(recordsCacheSim1));
+  }
+
+  function renderRecordsTableSim1() {
+    const tbody = document.getElementById('dbTbodySim1');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    recordsCacheSim1.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      tr.ondblclick = () => { selectedRecIndexSim1 = idx; handleEditRecordSim1(); };
+      tr.onclick = () => { selectedRecIndexSim1 = idx; };
+      const d = item;
+      tr.innerHTML = `
+        <td>${idx + 1}</td><td>${d.customer}</td><td>${d.model}</td><td>${d.note}</td>
+        <td>${d.maxdelta}</td><td>${d.mindelta}</td><td>${d.maxip}</td><td>${d.Fpfmax}</td>
+        <td>${d.maxt}</td><td>${d.obvm}</td><td>${d.ibvm}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function handleSaveRecordSim1() {
+    const customer = document.getElementById('cboCustomerSim1').value;
+    const model = document.getElementById('cboModelSim1').value;
+    if (customer === "無" || model === "無") return alert('請先選擇客戶與機種名稱！');
+    const record = {
+      customer: customer,
+      model: model,
+      note: document.getElementById('txtProjectNoteSim1').value,
+      shaftOD: document.getElementById('txtShaftODSim1').value,
+      shaftTol: document.getElementById('txtShaftODToleranceSim1').value,
+      shaftTolType: document.querySelector('input[name="shaftTolSim1"]:checked').value,
+      shaftID: document.getElementById('txtShaftIDNearly0Sim1').value,
+      shaftE: document.getElementById('txtShaftYoungModulusSim1').value,
+      shaftNu: document.getElementById('txtShaftPoissonRatioSim1').value,
+      holeID: document.getElementById('txtHoleIDSim1').value,
+      holeTol: document.getElementById('txtHoleIDToleranceSim1').value,
+      holeTolType: document.querySelector('input[name="holeTolSim1"]:checked').value,
+      holeOD: document.getElementById('txtHoleODSim1').value,
+      holeE: document.getElementById('txtHoleYoungModulusSim1').value,
+      holeNu: document.getElementById('txtHolePoissonRatioSim1').value,
+      friction: document.getElementById('txtFrictionSim1').value,
+      intLen: document.getElementById('txtInterferenceLenSim1').value,
+      maxdelta: document.getElementById('res_IntMaxSim1').innerText,
+      mindelta: document.getElementById('res_IntMinSim1').innerText,
+      maxip: document.getElementById('res_StressMaxSim1').innerText,
+      Fpfmax: document.getElementById('res_ForceMaxSim1').innerText,
+      maxt: document.getElementById('res_TorqueMaxSim1').innerText,
+      obvm: document.getElementById('res_ShaftOD_VMSim1').innerText,
+      ibvm: document.getElementById('res_HoleID_VMSim1').innerText,
+      shaftMatType: document.getElementById('cmbShaftMatTypeSim1').value,
+      shaftMatName: document.getElementById('cmbShaftMatNameSim1').value,
+      holeMatType: document.getElementById('cmbHoleMatTypeSim1').value,
+      holeMatName: document.getElementById('cmbHoleMatNameSim1').value
+    };
+    recordsCacheSim1.unshift(record);
+    saveLocalRecordsSim1();
+    renderRecordsTableSim1();
+    alert('✅ 仿真 1 紀錄已成功儲存至本機資料庫！');
+  }
+
+  function handleEditRecordSim1() {
+    if (selectedRecIndexSim1 === null) return alert('請先點選一筆紀錄帶入！');
+    const d = recordsCacheSim1[selectedRecIndexSim1];
+    
+    // --- MODIFICATION START ---
+    // 5. 確保帶入紀錄時，下拉選單也能正確更新
+    refreshCustomerAndModels();
+    // --- MODIFICATION END ---
+    
+    document.getElementById('cboCustomerSim1').value = d.customer;
+    onCustomerChangeSim1(); // 觸發機種更新
+    document.getElementById('cboModelSim1').value = d.model;
+    
+    document.getElementById('txtProjectNoteSim1').value = d.note;
+    document.getElementById('txtShaftODSim1').value = d.shaftOD;
+    document.getElementById('txtShaftODToleranceSim1').value = d.shaftTol;
+    document.getElementById('txtShaftIDNearly0Sim1').value = d.shaftID;
+    document.getElementById('txtHoleIDSim1').value = d.holeID;
+    document.getElementById('txtHoleIDToleranceSim1').value = d.holeTol;
+    document.getElementById('txtHoleODSim1').value = d.holeOD;
+    document.getElementById('txtFrictionSim1').value = d.friction;
+    document.getElementById('txtInterferenceLenSim1').value = d.intLen;
+    document.querySelectorAll('input[name="shaftTolSim1"]').forEach(r => { if(r.value === d.shaftTolType) r.checked = true; });
+    document.querySelectorAll('input[name="holeTolSim1"]').forEach(r => { if(r.value === d.holeTolType) r.checked = true; });
+    const sType = d.shaftMatType || "自定義";
+    document.getElementById('cmbShaftMatTypeSim1').value = sType;
+    onMaterialDropdownChange('sim1', true);
+    if(sType !== "自定義") document.getElementById('cmbShaftMatNameSim1').value = d.shaftMatName;
+    const hType = d.holeMatType || "自定義";
+    document.getElementById('cmbHoleMatTypeSim1').value = hType;
+    onMaterialDropdownChange('sim1_hole', true);
+    if(hType !== "自定義") document.getElementById('cmbHoleMatNameSim1').value = d.holeMatName;
+    document.getElementById('txtShaftYoungModulusSim1').value = d.shaftE;
+    document.getElementById('txtShaftPoissonRatioSim1').value = d.shaftNu;
+    document.getElementById('txtHoleYoungModulusSim1').value = d.holeE;
+    document.getElementById('txtHolePoissonRatioSim1').value = d.holeNu;
+    calcSim1();
+    alert('✅ 仿真 1 歷史參數帶入成功！');
+  }
+
+  function handleDeleteRecordSim1() {
+    if (selectedRecIndexSim1 === null) return alert('請先選取紀錄！');
+    if(!confirm('確定刪除？')) return;
+    recordsCacheSim1.splice(selectedRecIndexSim1, 1);
+    selectedRecIndexSim1 = null;
+    saveLocalRecordsSim1();
+    renderRecordsTableSim1();
+    alert('✅ 已刪除！');
+  }
+
+  function resetFormSim1() {
+    selectedRecIndexSim1 = null;
+    document.getElementById('txtProjectNoteSim1').value = "";
+    document.getElementById('txtShaftODSim1').value = "52.0000";
+    document.getElementById('txtShaftODToleranceSim1').value = "0.0300";
+    document.getElementById('txtShaftIDNearly0Sim1').value = "46.4000";
+    document.getElementById('txtHoleIDSim1').value = "51.9400";
+    document.getElementById('txtHoleIDToleranceSim1').value = "0.0150";
+    document.getElementById('txtHoleODSim1').value = "54.3400";
+    document.getElementById('txtFrictionSim1').value = "0.15";
+    document.getElementById('txtInterferenceLenSim1').value = "20.0";
+    
+    // --- MODIFICATION START ---
+    refreshCustomerAndModels();
+    // --- MODIFICATION END ---
+    
+    populateAllMaterialDropdowns();
+    alert('🔄 仿真 1 已重置為預設規格。');
+  }
+
+  // --- MODIFICATION START ---
+  // 6. 將頁面初始化與同步邏輯綁定到 window 事件
+  window.onload = function() {
+    loadLocalMaterials();
+    loadLocalRecordsSim1();
+    
+    // 首次載入客戶/機種資料
+    refreshCustomerAndModels();
+    updateSim1Diagram();
+    // 監聽 focus 事件，解決 iframe 同步問題
+    const custSel = document.getElementById('cboCustomerSim1');
+    if (custSel) {
+        custSel.addEventListener('focus', refreshCustomerAndModels);
+    }
+  };
+
+  // 監聽跨分頁/tab 的 storage 變化
+  window.addEventListener('storage', (e) => {
+      if (e.key === 'rd_portal_customer_models') {
+          refreshCustomerAndModels();
+      }
+  });
+  // --- MODIFICATION END ---
+</script>
+</body>
+</html>

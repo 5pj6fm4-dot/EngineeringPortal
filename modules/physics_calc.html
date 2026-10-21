@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理計算器 (Physics Calculator) - Taigene</title>
+    <style>
+        :root {
+            --bg: #f3f6fb;
+            --card: #fff;
+            --line: #cbd5e1;
+            --text: #1e293b;
+            --primary: #1769aa;
+            --primary-light: #e8f3ff;
+            --accent: #2563eb;
+            --danger: #dc2626;
+            --success: #16a34a;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+        }
+
+        body { 
+            margin: 0; 
+            padding: 20px; 
+            background-color: var(--bg); 
+            color: var(--text); 
+        }
+
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+        }
+
+        /* 標題與頁籤導覽列 */
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 18px; 
+            border-bottom: 2px solid var(--line); 
+            padding-bottom: 10px; 
+        }
+        
+        .header h1 { 
+            margin: 0; 
+            font-size: 1.4rem; 
+            color: var(--primary); 
+        }
+
+        .tab-nav { 
+            display: flex; 
+            gap: 10px; 
+            background: #e2e8f0; 
+            padding: 5px 5px 0; 
+            border-radius: 8px 8px 0 0; 
+        }
+
+        .tab-btn { 
+            border: none; 
+            background: transparent; 
+            padding: 10px 20px; 
+            font-size: 0.95rem; 
+            font-weight: 600; 
+            color: #64748b; 
+            cursor: pointer; 
+            border-radius: 6px 6px 0 0; 
+            transition: all 0.2s; 
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn.active { 
+            background: var(--card); 
+            color: var(--primary); 
+            border-bottom: 3px solid var(--primary); 
+        }
+
+        /* 卡片與表單排版 */
+        .card { 
+            background: var(--card); 
+            border: 1px solid var(--line); 
+            border-radius: 8px; 
+            padding: 20px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            margin-bottom: 15px; 
+        }
+
+        .card h2 { 
+            margin-top: 0; 
+            margin-bottom: 15px; 
+            font-size: 1.1rem; 
+            color: var(--primary); 
+            border-bottom: 1px solid #e2e8f0; 
+            padding-bottom: 6px; 
+        }
+
+        .grid-layout { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+        }
+
+        .form-group { 
+            margin-bottom: 15px; 
+        }
+
+        .form-group label { 
+            display: block; 
+            font-weight: bold; 
+            margin-bottom: 6px; 
+            font-size: 0.85rem; 
+            color: #475569;
+        }
+
+        .radio-group { 
+            display: flex; 
+            gap: 15px; 
+            background: #f8fafc; 
+            padding: 10px 15px; 
+            border: 1px solid var(--line); 
+            border-radius: 6px; 
+            margin-bottom: 15px;
+        }
+
+        .radio-group label { 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 0.9rem;
+        }
+
+        /* 輸入控制項樣式 */
+        .input-combo { 
+            display: flex; 
+            gap: 8px; 
+        }
+
+        .form-control { 
+            flex: 1; 
+            padding: 8px 12px; 
+            border: 1px solid var(--line); 
+            border-radius: 5px; 
+            font-size: 0.9rem; 
+        }
+
+        .form-control:focus { 
+            outline: none; 
+            border-color: var(--primary); 
+            box-shadow: 0 0 0 3px rgba(23,105,170,0.15); 
+        }
+
+        select.form-control { 
+            max-width: 110px; 
+            background-color: #f8fafc; 
+            cursor: pointer;
+        }
+
+        /* 按鈕群組 */
+        .btn-group { 
+            display: flex; 
+            gap: 8px; 
+            margin-top: 10px; 
+        }
+
+        button { 
+            cursor: pointer; 
+            padding: 8px 16px; 
+            border: 1px solid transparent; 
+            border-radius: 5px; 
+            font-size: 0.9rem; 
+            font-weight: 600; 
+            transition: all 0.2s; 
+        }
+
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #115293; }
+        .btn-outline { background: #fff; border-color: var(--line); color: var(--text); }
+        .btn-outline:hover { background: #f1f5f9; }
+
+        /* 結果展示面板 */
+        .result-panel { 
+            background: #f8fafc; 
+            border: 1px solid var(--line); 
+            border-radius: 6px; 
+            padding: 15px; 
+        }
+
+        .result-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 8px 0; 
+            border-bottom: 1px solid #e2e8f0; 
+        }
+
+        .result-row:last-child { 
+            border-bottom: none; 
+        }
+
+        .result-label { 
+            font-weight: bold; 
+            font-size: 0.9rem; 
+            color: #475569; 
+        }
+
+        .result-value { 
+            font-size: 1.15rem; 
+            font-weight: 700; 
+            color: var(--primary); 
+        }
+
+        .result-value.large { 
+            font-size: 1.3rem; 
+            color: var(--accent); 
+        }
+
+        .hidden { 
+            display: none !important; 
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <!-- 頂部頁面導覽與標題 -->
+    <div class="header">
+        <h1 id="portalTitle">⚙️ 物理計算器 (Physics Calculator)</h1>
+        <div class="tab-nav">
+            <button class="tab-btn active" id="btnForceView" onclick="switchView('force')">力量計算</button>
+            <button class="tab-btn" id="btnPressureView" onclick="switchView('pressure')">壓力計算</button>
+        </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- 頁籤 A：力量計算面板                                        -->
+    <!-- ========================================================== -->
+    <div id="panelForce">
+        <div class="radio-group">
+            <label><input type="radio" name="forceMode" value="1" checked onchange="onForceModeChange(1)"> 求解力 (F)</label>
+            <label><input type="radio" name="forceMode" value="2" onchange="onForceModeChange(2)"> 求解質量 (m)</label>
+            <label><input type="radio" name="forceMode" value="3" onchange="onForceModeChange(3)"> 求解加速度 (a)</label>
+        </div>
+
+        <div class="grid-layout">
+            <!-- 左側輸入區 -->
+            <div class="card">
+                <h2>📥 參數輸入</h2>
+                <div class="form-group">
+                    <label id="lblForceInput1">質量 m：</label>
+                    <div class="input-combo">
+                        <input type="number" id="txtForceValue1" class="form-control" value="218" step="any" oninput="calculateForce()">
+                        <select id="cboForceUnit1" class="form-control" onchange="calculateForce()"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label id="lblForceInput2">加速度 a：</label>
+                    <div class="input-combo">
+                        <input type="number" id="txtForceValue2" class="form-control" value="1000" step="any" oninput="calculateForce()">
+                        <select id="cboForceUnit2" class="form-control" onchange="calculateForce()"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="txtAngle">夾角 (Angle)：</label>
+                    <div class="input-combo">
+                        <input type="number" id="txtAngle" class="form-control" value="0" step="any" oninput="calculateForce()">
+                        <select id="cboAngleUnit" class="form-control" onchange="calculateForce()">
+                            <option value="度">度 (°)</option>
+                            <option value="弧度">弧度 (rad)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="calculateForce()">🚀 重新計算</button>
+                    <button class="btn-outline" onclick="clearForceInputs()">🔄 清空重置</button>
+                </div>
+            </div>
+
+            <!-- 右側輸出區 -->
+            <div class="card">
+                <h2>📊 計算結果</h2>
+                <div class="result-panel">
+                    <div class="result-row">
+                        <span class="result-label" id="lblForceResult1">力 (N)：</span>
+                        <span class="result-value" id="lblForceResult1Value">0.000</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label" id="lblForceResult2">力 (kN)：</span>
+                        <span class="result-value" id="lblForceResult2Value">0.000</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label" id="lblForceResult3">力 (lbf)：</span>
+                        <span class="result-value" id="lblForceResult3Value">0.000</span>
+                    </div>
+                    <div id="rowForce4" class="result-row">
+                        <span class="result-label" id="lblForceResult4">力 (dyn)：</span>
+                        <span class="result-value" id="lblForceResult4Value">0.000</span>
+                    </div>
+                    <div class="result-row" style="border-top: 2px dashed var(--line); margin-top: 10px; padding-top: 12px;">
+                        <span class="result-label">X 方向分力 (Fx)：</span>
+                        <span class="result-value" id="lblFxValue">0.000</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Y 方向分力 (Fy)：</span>
+                        <span class="result-value" id="lblFyValue">0.000</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">向量表示：</span>
+                        <span class="result-value" id="lblCompXValue" style="font-size: 0.95rem;">0.000 N</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">垂直表示：</span>
+                        <span class="result-value" id="lblCompYValue" style="font-size: 0.95rem;">0.000 N</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- 頁籤 B：壓力計算面板                                        -->
+    <!-- ========================================================== -->
+    <div id="panelPressure" class="hidden">
+        <div class="radio-group">
+            <label><input type="radio" name="pressureMode" value="1" checked onchange="onPressureModeChange(1)"> 求解壓力 (P = F / A)</label>
+            <label><input type="radio" name="pressureMode" value="2" onchange="onPressureModeChange(2)"> 求解力 (F = P × A)</label>
+            <label><input type="radio" name="pressureMode" value="3" onchange="onPressureModeChange(3)"> 求解面積 (A = F / P)</label>
+        </div>
+
+        <div class="grid-layout">
+            <!-- 左側輸入區 -->
+            <div class="card">
+                <h2>📥 參數輸入</h2>
+                <div class="form-group">
+                    <label id="lblPressureInput1">力 (F)：</label>
+                    <div class="input-combo">
+                        <input type="number" id="txtPressureValue1" class="form-control" value="100" step="any" oninput="calculatePressure()">
+                        <select id="cboPressureUnit1" class="form-control" onchange="calculatePressure()"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label id="lblPressureInput2">面積 (A)：</label>
+                    <div class="input-combo">
+                        <input type="number" id="txtPressureValue2" class="form-control" value="1" step="any" oninput="calculatePressure()">
+                        <select id="cboPressureUnit2" class="form-control" onchange="calculatePressure()"></select>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="calculatePressure()">🚀 重新計算</button>
+                    <button class="btn-outline" onclick="clearPressureInputs()">🔄 清空重置</button>
+                </div>
+            </div>
+
+            <!-- 右側輸出區 -->
+            <div class="card">
+                <h2>📊 計算結果</h2>
+                <div class="result-panel" style="display: flex; flex-direction: column; justify-content: center; height: 100%; min-height: 200px;">
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <span class="result-label" id="lblPressureResultTitle" style="font-size: 1.1rem; display: block; margin-bottom: 8px;">壓力 (P)：</span>
+                        <span class="result-value large" id="lblPressureResultValue">0</span>
+                    </div>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label for="cboPressureUnit3">期望輸出單位：</label>
+                        <select id="cboPressureUnit3" class="form-control" style="max-width: 100%;" onchange="calculatePressure()"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ========================================================== -->
+<!-- 7. JAVASCRIPT 核心計算動作邏輯                             -->
+<!-- ========================================================== -->
+<script>
+    'use strict';
+
+    // 核心物理常數
+    const G = 9.80665;
+
+    // 力量與壓力模式常數
+    const MODE_FORCE_CALC = 1;
+    const MODE_MASS_CALC = 2;
+    const MODE_ACCEL_CALC = 3;
+
+    let currentForceMode = MODE_FORCE_CALC;
+    let currentPressureMode = MODE_FORCE_CALC;
+
+    // ==========================================
+    // 🔌 頁籤切換邏輯
+    // ==========================================
+    function switchView(view) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        if (view === 'force') {
+            document.getElementById('btnForceView').classList.add('active');
+            document.getElementById('panelForce').classList.remove('hidden');
+            document.getElementById('panelPressure').classList.add('hidden');
+            calculateForce();
+        } else {
+            document.getElementById('btnPressureView').classList.add('active');
+            document.getElementById('panelForce').classList.add('hidden');
+            document.getElementById('panelPressure').classList.remove('hidden');
+            calculatePressure();
+        }
+    }
+
+    // ==========================================
+    // ⚙️ 力量計算模組
+    // ==========================================
+    function initForceTab() {
+        document.getElementsByName('forceMode')[0].checked = true;
+        currentForceMode = MODE_FORCE_CALC;
+        updateForceInputFields();
+        calculateForce();
+    }
+
+    function onForceModeChange(mode) {
+        currentForceMode = mode;
+        updateForceInputFields();
+        clearForceResults();
+        calculateForce();
+    }
+
+    function updateForceInputFields() {
+        const unit1 = document.getElementById('cboForceUnit1');
+        const unit2 = document.getElementById('cboForceUnit2');
+        
+        unit1.innerHTML = '';
+        unit2.innerHTML = '';
+
+        if (currentForceMode === MODE_FORCE_CALC) {
+            document.getElementById('lblForceInput1').textContent = "質量 m：";
+            document.getElementById('lblForceInput2').textContent = "加速度 a：";
+            
+            // 質量單位
+            ["g", "kg", "lb", "oz"].forEach(u => unit1.add(new Option(u, u)));
+            unit1.value = "g";
+
+            // 加速度單位 (包含平方上標 ²)
+            unit2.add(new Option("m/s²", "m/s2"));
+            unit2.add(new Option("ft/s²", "ft/s2"));
+            unit2.add(new Option("g", "g"));
+            unit2.value = "m/s2";
+
+            // 結果標籤
+            document.getElementById('lblForceResult1').textContent = "力 (N)：";
+            document.getElementById('lblForceResult2').textContent = "力 (kN)：";
+            document.getElementById('lblForceResult3').textContent = "力 (lbf)：";
+            document.getElementById('lblForceResult4').textContent = "力 (dyn)：";
+            document.getElementById('rowForce4').classList.remove('hidden');
+        } 
+        else if (currentForceMode === MODE_MASS_CALC) {
+            document.getElementById('lblForceInput1').textContent = "加速度 a：";
+            document.getElementById('lblForceInput2').textContent = "力 F：";
+
+            // 加速度單位
+            unit1.add(new Option("m/s²", "m/s2"));
+            unit1.add(new Option("ft/s²", "ft/s2"));
+            unit1.add(new Option("g", "g"));
+            unit1.value = "m/s2";
+
+            // 力單位
+            ["N", "kN", "lbf", "dyn"].forEach(u => unit2.add(new Option(u, u)));
+            unit2.value = "N";
+
+            // 結果標籤
+            document.getElementById('lblForceResult1').textContent = "質量 (kg)：";
+            document.getElementById('lblForceResult2').textContent = "質量 (g)：";
+            document.getElementById('lblForceResult3').textContent = "質量 (lb)：";
+            document.getElementById('lblForceResult4').textContent = "質量 (oz)：";
+            document.getElementById('rowForce4').classList.remove('hidden');
+        } 
+        else if (currentForceMode === MODE_ACCEL_CALC) {
+            document.getElementById('lblForceInput1').textContent = "質量 m：";
+            document.getElementById('lblForceInput2').textContent = "力 F：";
+
+            // 質量單位
+            ["g", "kg", "lb", "oz"].forEach(u => unit1.add(new Option(u, u)));
+            unit1.value = "g";
+
+            // 力單位
+            ["N", "kN", "lbf", "dyn"].forEach(u => unit2.add(new Option(u, u)));
+            unit2.value = "N";
+
+            // 結果標籤
+            document.getElementById('lblForceResult1').textContent = "加速度 (m/s²)：";
+            document.getElementById('lblForceResult2').textContent = "加速度 (ft/s²)：";
+            document.getElementById('lblForceResult3').textContent = "加速度 (g)：";
+            document.getElementById('rowForce4').classList.add('hidden');
+        }
+    }
+
+    function calculateForce() {
+        const val1 = parseFloat(document.getElementById('txtForceValue1').value);
+        const val2 = parseFloat(document.getElementById('txtForceValue2').value);
+        const angle = parseFloat(document.getElementById('txtAngle').value);
+
+        if (isNaN(val1) || isNaN(val2) || isNaN(angle)) return;
+
+        const angleUnit = document.getElementById('cboAngleUnit').value;
+        const angleRad = angleUnit === "度" ? (angle * Math.PI / 180) : angle;
+
+        const unit1 = document.getElementById('cboForceUnit1').value;
+        const unit2 = document.getElementById('cboForceUnit2').value;
+
+        let force_N = 0, mass_kg = 0, accel_ms2 = 0;
+
+        if (currentForceMode === MODE_FORCE_CALC) {
+            mass_kg = convertMassToKG(val1, unit1);
+            accel_ms2 = convertAccelToMs2(val2, unit2);
+            force_N = mass_kg * accel_ms2;
+            displayForceResults(force_N);
+            calculateForceComponents(force_N, angleRad);
+        } 
+        else if (currentForceMode === MODE_MASS_CALC) {
+            accel_ms2 = convertAccelToMs2(val1, unit1);
+            force_N = convertForceToN(val2, unit2);
+            mass_kg = accel_ms2 !== 0 ? (force_N / accel_ms2) : 0;
+            displayMassResults(mass_kg);
+            calculateForceComponents(force_N, angleRad);
+        } 
+        else if (currentForceMode === MODE_ACCEL_CALC) {
+            mass_kg = convertMassToKG(val1, unit1);
+            force_N = convertForceToN(val2, unit2);
+            accel_ms2 = mass_kg !== 0 ? (force_N / mass_kg) : 0;
+            displayAccelResults(accel_ms2);
+            calculateForceComponents(force_N, angleRad);
+        }
+    }
+
+    function displayForceResults(force_N) {
+        document.getElementById('lblForceResult1Value').textContent = force_N.toFixed(3);
+        document.getElementById('lblForceResult2Value').textContent = (force_N / 1000).toFixed(3);
+        document.getElementById('lblForceResult3Value').textContent = (force_N * 0.224808943).toFixed(3);
+        document.getElementById('lblForceResult4Value').textContent = (force_N * 100000).toFixed(3);
+    }
+
+    function displayMassResults(mass_kg) {
+        document.getElementById('lblForceResult1Value').textContent = mass_kg.toFixed(3);
+        document.getElementById('lblForceResult2Value').textContent = (mass_kg * 1000).toFixed(3);
+        document.getElementById('lblForceResult3Value').textContent = (mass_kg * 2.20462262).toFixed(3);
+        document.getElementById('lblForceResult4Value').textContent = (mass_kg * 35.2739619).toFixed(3);
+    }
+
+    function displayAccelResults(accel_ms2) {
+        document.getElementById('lblForceResult1Value').textContent = accel_ms2.toFixed(3);
+        document.getElementById('lblForceResult2Value').textContent = (accel_ms2 * 3.28084).toFixed(3);
+        document.getElementById('lblForceResult3Value').textContent = (accel_ms2 / G).toFixed(3);
+    }
+
+    function calculateForceComponents(force_N, angleRad) {
+        const fx = force_N * Math.cos(angleRad);
+        const fy = force_N * Math.sin(angleRad);
+
+        document.getElementById('lblFxValue').textContent = fx.toFixed(3);
+        document.getElementById('lblFyValue').textContent = fy.toFixed(3);
+        document.getElementById('lblCompXValue').textContent = fx.toFixed(3) + " N";
+        document.getElementById('lblCompYValue').textContent = fy.toFixed(3) + " N";
+    }
+
+    // ==========================================
+    // 🌀 壓力計算模組
+    // ==========================================
+    function initPressureTab() {
+        document.getElementsByName('pressureMode')[0].checked = true;
+        currentPressureMode = MODE_FORCE_CALC; // 計算壓力
+        updatePressureInputFields();
+        calculatePressure();
+    }
+
+    function onPressureModeChange(mode) {
+        currentPressureMode = mode;
+        updatePressureInputFields();
+        clearPressureResults();
+        calculatePressure();
+    }
+
+    function updatePressureInputFields() {
+        const unit1 = document.getElementById('cboPressureUnit1');
+        const unit2 = document.getElementById('cboPressureUnit2');
+        const unit3 = document.getElementById('cboPressureUnit3');
+
+        if (currentPressureMode === 1) { // 求解壓力：輸入 F、A
+            document.getElementById('lblPressureInput1').textContent = "力 (F)：";
+            document.getElementById('lblPressureInput2').textContent = "面積 (A)：";
+            document.getElementById('lblPressureResultTitle').textContent = "壓力 (P)：";
+
+            populateForceUnits(unit1);
+            populateAreaUnits(unit2);
+            populatePressureUnits(unit3);
+
+            unit1.value = "N";
+            unit2.value = "m2";
+            unit3.value = "Pa";
+        } 
+        else if (currentPressureMode === 2) { // 求解力：輸入 A、P
+            document.getElementById('lblPressureInput1').textContent = "面積 (A)：";
+            document.getElementById('lblPressureInput2').textContent = "壓力 (P)：";
+            document.getElementById('lblPressureResultTitle').textContent = "力 (F)：";
+
+            populateAreaUnits(unit1);
+            populatePressureUnits(unit2);
+            populateForceUnits(unit3);
+
+            unit1.value = "m2";
+            unit2.value = "Pa";
+            unit3.value = "N";
+        } 
+        else if (currentPressureMode === 3) { // 求解面積：輸入 F、P
+            document.getElementById('lblPressureInput1').textContent = "力 (F)：";
+            document.getElementById('lblPressureInput2').textContent = "壓力 (P)：";
+            document.getElementById('lblPressureResultTitle').textContent = "面積 (A)：";
+
+            populateForceUnits(unit1);
+            populatePressureUnits(unit2);
+            populateAreaUnits(unit3);
+
+            unit1.value = "N";
+            unit2.value = "Pa";
+            unit3.value = "m2";
+        }
+    }
+
+    function populateForceUnits(select) {
+        select.innerHTML = '';
+        ["N", "kN", "lbf", "kgf", "dyn"].forEach(u => select.add(new Option(u, u)));
+    }
+
+    function populateAreaUnits(select) {
+        select.innerHTML = '';
+        select.add(new Option("mm²", "mm2"));
+        select.add(new Option("cm²", "cm2"));
+        select.add(new Option("m²", "m2"));
+        select.add(new Option("ft²", "ft2"));
+        select.add(new Option("in²", "in2"));
+    }
+
+    function populatePressureUnits(select) {
+        select.innerHTML = '';
+        ["Pa", "kPa", "MPa", "bar", "PSI", "atm", "torr"].forEach(u => select.add(new Option(u, u)));
+    }
+
+    function calculatePressure() {
+        const val1 = parseFloat(document.getElementById('txtPressureValue1').value);
+        const val2 = parseFloat(document.getElementById('txtPressureValue2').value);
+
+        if (isNaN(val1) || isNaN(val2)) return;
+
+        const unit1 = document.getElementById('cboPressureUnit1').value;
+        const unit2 = document.getElementById('cboPressureUnit2').value;
+        const targetUnit = document.getElementById('cboPressureUnit3').value;
+
+        let resultValue = 0;
+
+        if (currentPressureMode === 1) { // 求解壓力 P = F / A
+            const force_N = convertForceToN(val1, unit1);
+            const area_m2 = convertAreaToM2(val2, unit2);
+            const pressure_Pa = area_m2 !== 0 ? (force_N / area_m2) : 0;
+            resultValue = convertPressureFromPa(pressure_Pa, targetUnit);
+        } 
+        else if (currentPressureMode === 2) { // 求解力 F = P * A
+            const area_m2 = convertAreaToM2(val1, unit1);
+            const pressure_Pa = convertPressureToPa(val2, unit2);
+            const force_N = pressure_Pa * area_m2;
+            resultValue = convertForceFromN(force_N, targetUnit);
+        } 
+        else if (currentPressureMode === 3) { // 求解面積 A = F / P
+            const force_N = convertForceToN(val1, unit1);
+            const pressure_Pa = convertPressureToPa(val2, unit2);
+            const area_m2 = pressure_Pa !== 0 ? (force_N / pressure_Pa) : 0;
+            resultValue = convertAreaFromM2(area_m2, targetUnit);
+        }
+
+        document.getElementById('lblPressureResultValue').textContent = formatResult(resultValue);
+    }
+
+    function formatResult(value) {
+        if (value === 0) return "0";
+        // 精確到小數點下8位，並去除多餘的零
+        return parseFloat(value.toFixed(8)).toString();
+    }
+
+    // ==========================================
+    // 📐 單位轉換公用子程序
+    // ==========================================
+    function convertMassToKG(value, unit) {
+        switch (unit) {
+            case "g": return value / 1000;
+            case "kg": return value;
+            case "lb": return value * 0.45359237;
+            case "oz": return value * 0.0283495231;
+            default: return value;
+        }
+    }
+
+    function convertAccelToMs2(value, unit) {
+        switch (unit) {
+            case "m/s2": return value;
+            case "ft/s2": return value * 0.3048;
+            case "g": return value * G;
+            default: return value;
+        }
+    }
+
+    function convertForceToN(value, unit) {
+        switch (unit) {
+            case "N": return value;
+            case "kN": return value * 1000;
+            case "lbf": return value * 4.4482216152605;
+            case "kgf": return value * 9.80665;
+            case "dyn": return value / 100000;
+            default: return value;
+        }
+    }
+
+    function convertForceFromN(value, targetUnit) {
+        switch (targetUnit) {
+            case "N": return value;
+            case "kN": return value / 1000;
+            case "lbf": return value / 4.4482216152605;
+            case "kgf": return value / 9.80665;
+            case "dyn": return value * 100000;
+            default: return value;
+        }
+    }
+
+    function convertAreaToM2(value, unit) {
+        switch (unit) {
+            case "mm2": return value / 1000000;
+            case "cm2": return value / 10000;
+            case "m2": return value;
+            case "ft2": return value * 0.09290304;
+            case "in2": return value * 0.00064516;
+            default: return value;
+        }
+    }
+
+    function convertAreaFromM2(value, targetUnit) {
+        switch (targetUnit) {
+            case "mm2": return value * 1000000;
+            case "cm2": return value * 10000;
+            case "m2": return value;
+            case "ft2": return value / 0.09290304;
+            case "in2": return value / 0.00064516;
+            default: return value;
+        }
+    }
+
+    function convertPressureToPa(value, unit) {
+        switch (unit) {
+            case "Pa": return value;
+            case "kPa": return value * 1000;
+            case "MPa": return value * 1000000;
+            case "bar": return value * 100000;
+            case "PSI": return value * 6894.75729;
+            case "atm": return value * 101325;
+            case "torr": return value * 133.322368421;
+            default: return value;
+        }
+    }
+
+    function convertPressureFromPa(value, targetUnit) {
+        switch (targetUnit) {
+            case "Pa": return value;
+            case "kPa": return value / 1000;
+            case "MPa": return value / 1000000;
+            case "bar": return value / 100000;
+            case "PSI": return value / 6894.75729;
+            case "atm": return value / 101325;
+            case "torr": return value / 133.322368421;
+            default: return value;
+        }
+    }
+
+    // ==========================================
+    // 🧹 清除輸入值與結果歸零
+    // ==========================================
+    function clearForceResults() {
+        document.getElementById('lblForceResult1Value').textContent = "0.000";
+        document.getElementById('lblForceResult2Value').textContent = "0.000";
+        document.getElementById('lblForceResult3Value').textContent = "0.000";
+        const res4 = document.getElementById('lblForceResult4Value');
+        if (res4) res4.textContent = "0.000";
+        
+        document.getElementById('lblFxValue').textContent = "0.000";
+        document.getElementById('lblFyValue').textContent = "0.000";
+        document.getElementById('lblCompXValue').textContent = "0.000 N";
+        document.getElementById('lblCompYValue').textContent = "0.000 N";
+    }
+
+    function clearPressureResults() {
+        document.getElementById('lblPressureResultValue').textContent = "0";
+    }
+
+    function clearForceInputs() {
+        document.getElementById('txtForceValue1').value = '';
+        document.getElementById('txtForceValue2').value = '';
+        document.getElementById('txtAngle').value = '0';
+        document.getElementById('cboAngleUnit').value = '度';
+        clearForceResults();
+    }
+
+    function clearPressureInputs() {
+        document.getElementById('txtPressureValue1').value = '';
+        document.getElementById('txtPressureValue2').value = '';
+        clearPressureResults();
+    }
+
+    // 初始化頁面執行
+    document.addEventListener('DOMContentLoaded', () => {
+        initForceTab();
+        initPressureTab();
+        switchView('force'); // 預設載入力計算
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>Design Tools | Engineering Calculation & Design</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --sidebar: #111827;
+      --sidebar-deep: #0b1220;
+      --sidebar-line: #273449;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --accent-strong: #2563eb;
+      --hover: #1e293b;
+      --white: #ffffff;
+      --danger: #dc2626;
+    }
+
+    * { box-sizing: border-box; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+    button, input, select { font: inherit; }
+
+    /* Login overlay */
+    #lockOverlay {
+      position: fixed; inset: 0; z-index: 99999; display: flex;
+      justify-content: center; align-items: center; padding: 20px;
+      background: radial-gradient(ellipse at top, #1e3a5f 0%, #111827 48%, #080d17 100%);
+    }
+    .pwd-card {
+      width: min(390px, 100%); padding: 34px 32px 30px; position: relative;
+      border: 1px solid rgba(148, 163, 184, .22); border-radius: 18px;
+      background: rgba(255,255,255,.98); box-shadow: 0 28px 70px rgba(0,0,0,.32);
+      text-align: center;
+    }
+    .brand-mark {
+      width: 48px; height: 48px; margin: 0 auto 18px; display: grid; place-items: center;
+      border-radius: 14px; color: white; font-size: 20px; font-weight: 800; letter-spacing: -1px;
+      background: linear-gradient(145deg, #60a5fa, #2563eb);
+      box-shadow: 0 8px 20px rgba(37,99,235,.25);
+    }
+    .pwd-title { font-size: 24px; font-weight: 750; letter-spacing: -.5px; color: #111827; margin-bottom: 7px; }
+    .pwd-subtitle { font-size: 12px; line-height: 1.6; color: #64748b; }
+    .pwd-input {
+      width: 100%; padding: 12px 14px; font-size: 16px; color: #0f172a;
+      border: 1px solid #cbd5e1; border-radius: 9px; margin: 22px 0 12px;
+      text-align: center; letter-spacing: 3px; outline: none; background: #f8fafc;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .pwd-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.14); background: white; }
+    .btn-login {
+      width: 100%; padding: 12px; background: var(--accent-strong); color: white; font-weight: 650;
+      border: none; border-radius: 9px; cursor: pointer; transition: background .2s, transform .2s;
+    }
+    .btn-login:hover { background: #1d4ed8; }
+    .btn-login:active { transform: translateY(1px); }
+    .btn-admin {
+      position: absolute; bottom: 12px; right: 12px; width: 30px; height: 30px;
+      display: grid; place-items: center; background: transparent; border: none;
+      border-radius: 7px; cursor: pointer; font-size: 16px; color: #94a3b8;
+    }
+    .btn-admin:hover { color: #475569; background: #f1f5f9; }
+
+    /* Main layout */
+    .portal-container { display: flex; width: 100%; height: 100%; }
+    .sidebar {
+      width: 270px; background: var(--sidebar); color: var(--text); display: flex;
+      flex-direction: column; flex-shrink: 0; border-right: 1px solid #0b1220;
+    }
+    .sidebar-header {
+      padding: 23px 20px 21px; background: linear-gradient(180deg, #151f30, var(--sidebar-deep));
+      border-bottom: 1px solid var(--sidebar-line);
+    }
+    .brand-row { display: flex; align-items: center; gap: 11px; }
+    .brand-small-mark {
+      width: 35px; height: 35px; flex: 0 0 35px; display: grid; place-items: center;
+      border-radius: 10px; color: white; font-size: 15px; font-weight: 800; letter-spacing: -1px;
+      background: linear-gradient(145deg, #60a5fa, #2563eb);
+    }
+    .sidebar-header h2 { margin: 0; font-size: 19px; line-height: 1.2; color: #f8fafc; font-weight: 750; letter-spacing: -.35px; }
+    .sidebar-header p { margin: 6px 0 0; font-size: 10px; line-height: 1.5; color: var(--muted); letter-spacing: .35px; }
+    .menu-scroll { flex: 1; overflow-y: auto; padding: 8px 0 16px; }
+    .menu-scroll::-webkit-scrollbar { width: 5px; }
+    .menu-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    .menu-group { padding: 13px 0 12px; border-bottom: 1px solid rgba(71,85,105,.35); }
+    .menu-title {
+      padding: 4px 18px 9px; font-size: 10px; text-transform: uppercase;
+      color: #7f91aa; font-weight: 750; letter-spacing: 1.1px;
+    }
+    .menu-item {
+      position: relative; margin: 2px 9px; padding: 11px 12px; cursor: pointer;
+      display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.45;
+      color: #cbd5e1; border-radius: 8px; transition: background .18s, color .18s;
+    }
+    .menu-item:hover { background: rgba(148,163,184,.1); color: white; }
+    .menu-item.active { background: #23344d; color: white; box-shadow: inset 3px 0 0 var(--accent); }
+    .menu-item .menu-icon { width: 20px; flex: 0 0 20px; text-align: center; font-size: 14px; }
+    .main-workspace { flex: 1; min-width: 0; height: 100%; background: var(--bg); position: relative; }
+    iframe { display: block; width: 100%; height: 100%; border: none; background: var(--bg); }
+
+    /* Admin verification */
+    #adminModal {
+      display: none; position: fixed; inset: 0; width: 100%; height: 100%;
+      background: rgba(2,6,23,.64); backdrop-filter: blur(3px); z-index: 100000;
+      justify-content: center; align-items: center; padding: 20px;
+    }
+    .admin-card { background: white; border: 1px solid #e2e8f0; border-radius: 13px; padding: 25px; width: min(340px, 100%); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+    .admin-input { width: 100%; padding: 10px 12px; margin: 14px 0; border: 1px solid #cbd5e1; border-radius: 7px; outline: none; }
+    .admin-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+    .admin-actions { display: flex; gap: 8px; justify-content: center; }
+    .admin-actions button { padding: 8px 15px; border: none; border-radius: 7px; font-weight: 650; cursor: pointer; }
+    .btn-confirm { background: #2563eb; color: white; }
+    .btn-cancel { background: #e2e8f0; color: #334155; }
+    
+    /* ---------------------------------- */
+    /* --- NEW: Projects DB Modal CSS --- */
+    /* ---------------------------------- */
+    #projectsDbModal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background-color: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+    .projects-db-card {
+        background: var(--bg);
+        width: min(800px, 100%);
+        max-height: 90vh;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        color: #1e293b;
+    }
+    .projects-db-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .projects-db-header h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--sidebar);
+    }
+    .btn-close-modal {
+        background: transparent; border: none; font-size: 24px;
+        cursor: pointer; color: #64748b; line-height: 1; padding: 4px;
+    }
+    .projects-db-body {
+        padding: 20px;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    .db-panel { background: var(--white); border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+    .db-panel h3 { margin: 0 0 15px; font-size: 15px; font-weight: 600; color: var(--accent-strong); }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 5px; }
+    .form-control { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
+    .form-control:focus { outline: none; border-color: var(--accent-strong); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15); }
+    .btn-db { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background .2s; }
+    .btn-db.primary { background: var(--accent-strong); color: white; }
+    .btn-db.primary:hover { background: #1d4ed8; }
+    .btn-db.danger { background: var(--danger); color: white; }
+    .btn-db.danger:hover { background: #b91c1c; }
+    .db-table-wrap { max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; }
+    .db-table { width: 100%; border-collapse: collapse; }
+    .db-table th, .db-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: left; }
+    .db-table th { background: #f8fafc; position: sticky; top: 0; }
+    .db-table tr:last-child td { border-bottom: none; }
+    .action-cell { display: flex; gap: 6px; justify-content: flex-end; }
+    .action-cell button { font-size: 11px; padding: 4px 8px; }
+
+    @media (max-width: 768px) {
+      .projects-db-body { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .sidebar { width: 220px; }
+      .sidebar-header { padding: 18px 14px; }
+      .sidebar-header h2 { font-size: 17px; }
+      .menu-item { font-size: 11px; padding: 10px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Login overlay -->
+  <div id="lockOverlay">
+    <div class="pwd-card">
+      <div class="brand-mark">DT</div>
+      <div class="pwd-title">Design Tools</div>
+      <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本週授權碼以存取工程計算模組</div>
+      <input type="password" id="userPwd" class="pwd-input" placeholder="輸入 6 位授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
+      <button class="btn-login" onclick="verifyPwd()">登入工作區</button>
+      <button class="btn-admin" onclick="openAdminModal()" aria-label="管理員設定" title="管理員設定">⚙</button>
+    </div>
+  </div>
+
+  <!-- Admin verification -->
+  <div id="adminModal">
+    <div class="admin-card">
+      <div style="font-weight:750; font-size:16px; margin-bottom:7px; color:#111827;">管理員驗證</div>
+      <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後產生並複製本週授權碼</div>
+      <input type="password" id="adminPwdInput" class="admin-input" placeholder="輸入管理密碼" onkeydown="if(event.key==='Enter') submitAdminCheck()">
+      <div class="admin-actions">
+        <button class="btn-confirm" onclick="submitAdminCheck()">確認</button>
+        <button class="btn-cancel" onclick="closeAdminModal()">取消</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ============================================== -->
+  <!-- === NEW: Projects DB Management Modal ======== -->
+  <!-- ============================================== -->
+  <div id="projectsDbModal">
+    <div class="projects-db-card">
+        <div class="projects-db-header">
+            <h2>客戶/機種資料庫管理</h2>
+            <button class="btn-close-modal" onclick="closeProjectsDbModal()" title="關閉">&times;</button>
+        </div>
+        <div class="projects-db-body">
+            <!-- Left Panel: Customer Management -->
+            <div class="db-panel">
+                <h3>🏢 客戶管理</h3>
+                <div class="form-group">
+                    <label for="txtNewCustomer">新增客戶</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="txtNewCustomer" class="form-control" placeholder="例如: Stellantis">
+                        <button class="btn-db primary" onclick="addCustomer()">新增</button>
+                    </div>
+                </div>
+                <div class="db-table-wrap">
+                    <table class="db-table">
+                        <thead><tr><th>客戶名稱</th><th style="width:80px">操作</th></tr></thead>
+                        <tbody id="customersTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Right Panel: Model Management -->
+            <div class="db-panel">
+                <h3>🚗 機種管理</h3>
+                <div class="form-group">
+                    <label for="modelCustomerSelect">選擇客戶</label>
+                    <select id="modelCustomerSelect" class="form-control" onchange="renderModelsTable()"></select>
+                </div>
+                <div class="form-group">
+                    <label for="txtNewModel">新增機種</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="txtNewModel" class="form-control" placeholder="例如: EPS-G3">
+                        <button class="btn-db primary" onclick="addModel()">新增</button>
+                    </div>
+                </div>
+                <div class="db-table-wrap">
+                    <table class="db-table">
+                        <thead><tr><th>機種名稱</th><th style="width:80px">操作</th></tr></thead>
+                        <tbody id="modelsTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- Main workspace -->
+  <div class="portal-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-row">
+          <div class="brand-small-mark">DT</div>
+          <div>
+            <h2>Design Tools</h2>
+            <p>ENGINEERING CALCULATION &amp; DESIGN</p>
+          </div>
+        </div>
+      </div>
+
+<nav class="menu-scroll" aria-label="工程工具選單">
+  <div class="menu-group">
+    <div class="menu-title">軸孔配合與壓入設計</div>
+
+    <div class="menu-item active"
+         onclick="loadModule('modules/sim1_basic.html', this)">
+      <span class="menu-icon">🔩</span>
+      <span>仿真 1：過盈應力（基礎版）</span>
+    </div>
+
+          <div class="menu-item" onclick="loadModule('modules/sim2_advanced.html', this)">
+		<span class="menu-icon">🌀</span>
+		<span>仿真 2：熱／旋轉分析（高階版）</span>
+		</div>
+        </div>
+
+        <div class="menu-group">
+	<div class="menu-title">公差配合與專用計算</div>
+	<div class="menu-item" onclick="loadModule('modules/tolerance_calc.html', this)">
+		<span class="menu-icon">📏</span>
+		<span>尺寸公差及配合度計算</span>
+	</div>
+
+	<div class="menu-item" onclick="loadModule('modules/centrifugal.html', this)">
+		<span class="menu-icon">🌀</span>
+		<span>轉子高速離心力計算</span>
+	</div>
+
+	<div class="menu-item" onclick="loadModule('modules/physics_calc.html', this)">
+		<span class="menu-icon">⚙️</span>
+		<span>物理計算器</span>
+	</div>
+
+	<div class="menu-item" onclick="loadModule('modules/unit_converter.html', this)">
+		<span class="menu-icon">🔄</span>
+		<span>工程單位轉換工具</span>
+	</div>
+
+	<div class="menu-item" onclick="loadModule('modules/torque_dynamics_calc.html', this)">
+		<span class="menu-icon">⚡</span>
+		<span>轉速與扭矩動力學計算</span>
+	</div>
+          
+          <div class="menu-item" onclick="loadModule('modules/tolerance_converter.html', this)"><span class="menu-icon">🔄</span><span>公差換算小工具</span></div>
+        </div>
+
+        <div class="menu-group">
+          <div class="menu-title">共用資料庫與規範</div>
+          <div class="menu-item" onclick="loadModule('modules/design_rules.html', this)"><span class="menu-icon">📐</span><span>設計規範資料庫 (Design Rules)</span></div>
+          <div class="menu-item" onclick="openProjectsDbModal()"><span class="menu-icon">🗂️</span><span>客戶/機種資料庫管理</span></div>
+          <div class="menu-item" onclick="loadModule('modules/materials_db.html', this)"><span class="menu-icon">📚</span><span>材料資料庫管理</span></div>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-workspace">
+      <!-- 登入成功前 iframe 預設留空 -->
+      <iframe id="workFrame" src="about:blank" title="Design Tools 工作區"></iframe>
+    </main>
+  </div>
+
+  <!-- IMPORTANT: This must be placed before the main script block -->
+  <script src="assets/js/project_db.js"></script>
+
+  <script>
+    // --- Standard Login & Navigation Logic (No changes) ---
+    function crc32(s) {
+      var c, t = [];
+      for (var n = 0; n < 256; n++) {
+        c = n;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c;
+      }
+      var crc = -1;
+      for (var i = 0; i < s.length; i++) crc = (crc >>> 8) ^ t[(crc ^ s.charCodeAt(i)) & 0xFF];
+      return (crc ^ (-1)) >>> 0;
+    }
+
+    function getISOWeek() {
+      var d = new Date(); d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+      var w1 = new Date(d.getFullYear(), 0, 4);
+      return 1 + Math.round(((d.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+    }
+
+    function getWeeklyPassword() {
+      var yr = String(new Date().getFullYear()).slice(-2);
+      var wk = getISOWeek();
+      var wkStr = wk < 10 ? '0' + wk : String(wk);
+      var raw = yr + wkStr + "5pj6fm4";
+      var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+      var res = "";
+      for (var i = 1; i <= 6; i++) res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
+      return res;
+    }
+
+    function verifyPwd() {
+      var input = document.getElementById('userPwd').value.trim();
+      if (input === getWeeklyPassword()) {
+        sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
+        document.getElementById('lockOverlay').style.display = 'none';
+        var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
+        if (firstItem) loadModule('modules/sim1_basic.html', firstItem);
+      } else {
+        alert('授權碼錯誤，請重新輸入。');
+        document.getElementById('userPwd').value = '';
+        document.getElementById('userPwd').focus();
+      }
+    }
+
+    function openAdminModal() {
+      document.getElementById('adminModal').style.display = 'flex';
+      document.getElementById('adminPwdInput').value = '';
+      document.getElementById('adminPwdInput').focus();
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').style.display = 'none';
+    }
+
+    function submitAdminCheck() {
+      var adminPwd = document.getElementById('adminPwdInput').value.trim();
+      if (adminPwd === "0315") {
+        var pwd = getWeeklyPassword();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(pwd).then(function () {
+            alert('本週授權碼為：' + pwd + '\n\n授權碼已複製到剪貼簿。');
+          }).catch(function () {
+            alert('本週授權碼為：' + pwd);
+          });
+        } else {
+          alert('本週授權碼為：' + pwd);
+        }
+        closeAdminModal();
+      } else {
+        alert('管理員密碼錯誤。');
+      }
+    }
+
+    function loadModule(url, element) {
+      document.querySelectorAll('.menu-item').forEach(function (el) { el.classList.remove('active'); });
+      if (element) element.classList.add('active');
+      document.getElementById('workFrame').src = url;
+    }
+
+    /* ----------------------------------------------- */
+    /* --- NEW: Projects DB Modal Management Logic --- */
+    /* ----------------------------------------------- */
+    function openProjectsDbModal() {
+        renderCustomersTable();
+        populateModelCustomerSelect();
+        renderModelsTable();
+        document.getElementById('projectsDbModal').style.display = 'flex';
+    }
+
+    function closeProjectsDbModal() {
+        document.getElementById('projectsDbModal').style.display = 'none';
+    }
+
+    function renderCustomersTable() {
+        const data = getProjectData();
+        const tbody = document.getElementById('customersTbody');
+        tbody.innerHTML = '';
+        Object.keys(data).sort().forEach(cust => {
+            const tr = document.createElement('tr');
+            const tdName = `<td>${cust}</td>`;
+            let tdAction = '<td class="action-cell">';
+            if (cust !== "無") {
+                tdAction += `<button class="btn-db danger" onclick="deleteCustomer('${cust}')">刪除</button>`;
+            }
+            tdAction += '</td>';
+            tr.innerHTML = tdName + tdAction;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function populateModelCustomerSelect() {
+        const data = getProjectData();
+        const select = document.getElementById('modelCustomerSelect');
+        const currentValue = select.value;
+        select.innerHTML = '';
+        Object.keys(data).sort().forEach(cust => {
+            if (cust !== "無") {
+                select.appendChild(new Option(cust, cust));
+            }
+        });
+        if (Array.from(select.options).some(o => o.value === currentValue)) {
+            select.value = currentValue;
+        }
+    }
+
+    function renderModelsTable() {
+        const customer = document.getElementById('modelCustomerSelect').value;
+        const tbody = document.getElementById('modelsTbody');
+        tbody.innerHTML = '';
+
+        if (!customer) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#9ca3af;">請從上方選擇一個客戶</td></tr>';
+            return;
+        }
+
+        const data = getProjectData();
+        const models = data[customer] || [];
+        models.forEach(model => {
+            const tr = document.createElement('tr');
+            const tdName = `<td>${model}</td>`;
+            let tdAction = '<td class="action-cell">';
+             if (model !== "無") {
+                tdAction += `<button class="btn-db danger" onclick="deleteModel('${customer}', '${model}')">刪除</button>`;
+            }
+            tdAction += '</td>';
+            tr.innerHTML = tdName + tdAction;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 新增客戶
+    function addCustomer() {
+        const input = document.getElementById('txtNewCustomer');
+        const name = input.value.trim();
+        if (!name) return alert("請輸入客戶名稱！");
+
+        const data = getProjectData();
+        if (data[name]) return alert("此客戶名稱已存在！");
+
+        data[name] = ["無"];
+        saveProjectData(data);
+        input.value = '';
+
+        renderCustomersTable();
+        populateModelCustomerSelect();
+    }
+    
+    // 刪除客戶
+    function deleteCustomer(customer) {
+        if (!confirm(`⚠️ 警告：確定要刪除客戶 [${customer}] 嗎？\n其名下所有機種也將一併被刪除！`)) return;
+        const data = getProjectData();
+        delete data[customer];
+        saveProjectData(data);
+        renderCustomersTable();
+        populateModelCustomerSelect();
+        renderModelsTable();
+    }
+    
+    // 新增機種
+    function addModel() {
+        const customer = document.getElementById('modelCustomerSelect').value;
+        if (!customer) return alert("請先從下拉選單選擇要新增機種的客戶！");
+        const input = document.getElementById('txtNewModel');
+        const model = input.value.trim();
+        if (!model) return alert("請輸入機種名稱！");
+
+        const data = getProjectData();
+        if (!data[customer]) data[customer] = [];
+        if (data[customer].includes(model)) return alert("此機種已存在於該客戶底下！");
+
+        data[customer].push(model);
+        data[customer].sort();
+        saveProjectData(data);
+        input.value = '';
+        renderModelsTable();
+    }
+
+    // 刪除機種
+    function deleteModel(customer, model) {
+        if (!confirm(`確定要刪除客戶 [${customer}] 的機種 [${model}] 嗎？`)) return;
+        const data = getProjectData();
+        if (data[customer]) {
+            data[customer] = data[customer].filter(m => m !== model);
+            saveProjectData(data);
+            renderModelsTable();
+        }
+    }
+  </script>
+</body>
+</html>

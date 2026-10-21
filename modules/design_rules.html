@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Design Rules｜設計規範資料庫</title>
+    
+    <!-- ========================================== -->
+    <!-- 1. 外部資源引入（公差與客戶機種中央資料庫） -->
+    <!-- ========================================== -->
+    <script src="../assets/js/project_db.js"></script>
+
+    <!-- ========================================== -->
+    <!-- 2. CSS 樣式表（排版與外觀設計）            -->
+    <!-- ========================================== -->
+    <style>
+        :root {
+            --bg: #f3f6fb;
+            --card: #fff;
+            --line: #dce4ee;
+            --text: #172b4d;
+            --muted: #62748a;
+            --blue: #1769aa;
+            --blue2: #eaf3ff;
+            --red: #b42318;
+            --green: #137547;
+            --shadow: 0 4px 18px #1c355710;
+        }
+
+        * { 
+            box-sizing: border-box; 
+        }
+
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text); 
+            font: 14px/1.5 "Microsoft JhengHei", Arial, sans-serif; 
+        }
+
+        header { 
+            background: linear-gradient(120deg, #163b65, #1769aa); 
+            color: #fff; 
+            padding: 22px 26px; 
+        }
+
+        header h1 { 
+            margin: 0 0 5px; 
+            font-size: 24px; 
+        }
+
+        header p { 
+            margin: 0; 
+            color: #dcecff; 
+        }
+
+        .wrap { 
+            max-width: 1600px; 
+            margin: 20px auto; 
+            padding: 0 18px; 
+        }
+
+        .toolbar, .card { 
+            background: var(--card); 
+            border: 1px solid var(--line); 
+            border-radius: 12px; 
+            box-shadow: var(--shadow); 
+        }
+
+        .toolbar { 
+            display: flex; 
+            gap: 10px; 
+            flex-wrap: wrap; 
+            align-items: center; 
+            padding: 13px; 
+            margin-bottom: 14px; 
+        }
+
+        .toolbar input { 
+            flex: 1; 
+            min-width: 210px; 
+        }
+
+        .card { 
+            padding: 18px; 
+            margin-bottom: 16px; 
+        }
+
+        .card h2 { 
+            font-size: 17px; 
+            margin: 0 0 14px; 
+        }
+
+        .section-title { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            margin: 2px 0 12px; 
+        }
+
+        .section-title h3 { 
+            font-size: 15px; 
+            margin: 0; 
+        }
+
+        .fields { 
+            display: grid; 
+            grid-template-columns: repeat(4, minmax(0, 1fr)); 
+            gap: 12px; 
+        }
+
+        .field { 
+            min-width: 0; 
+        }
+
+        .field.span2 { 
+            grid-column: span 2; 
+        }
+
+        .field.span4 { 
+            grid-column: 1 / -1; 
+        }
+
+        label { 
+            display: block; 
+            font-weight: 650; 
+            font-size: 12px; 
+            color: #42556d; 
+            margin: 0 0 5px; 
+        }
+
+        input, select, textarea { 
+            width: 100%; 
+            padding: 9px 10px; 
+            border: 1px solid #cbd6e2; 
+            border-radius: 7px; 
+            background: #fff; 
+            color: var(--text); 
+            font: inherit; 
+            min-width: 0; 
+        }
+
+        input:focus, select:focus, textarea:focus { 
+            outline: 2px solid #9cc8f4; 
+            border-color: #438bd0; 
+        }
+
+        textarea { 
+            resize: vertical; 
+            min-height: 72px; 
+        }
+
+        input[readonly] { 
+            background: #f1f4f8; 
+            color: #58697e; 
+        }
+
+        .btn { 
+            border: 1px solid #cbd6e2; 
+            border-radius: 8px; 
+            padding: 9px 13px; 
+            background: #fff; 
+            color: #233b57; 
+            cursor: pointer; 
+            font: inherit; 
+            font-weight: 650; 
+        }
+
+        .btn:hover { 
+            filter: brightness(.97); 
+        }
+
+        .btn.primary { 
+            background: var(--blue); 
+            border-color: var(--blue); 
+            color: #fff; 
+        }
+
+        .btn.danger { 
+            color: var(--red); 
+            border-color: #efc5c2; 
+        }
+
+        .btn.small { 
+            padding: 5px 9px; 
+            font-size: 12px; 
+        }
+
+        .status { 
+            padding: 10px 12px; 
+            border-radius: 8px; 
+            background: #f2f7fc; 
+            color: #52657b; 
+            margin-bottom: 12px; 
+        }
+
+        .status.warn { 
+            background: #fff6e5; 
+            color: #895b00; 
+        }
+
+        .status.ok { 
+            background: #eaf8f0; 
+            color: var(--green); 
+        }
+
+        .tabs { 
+            display: flex; 
+            gap: 6px; 
+            border-bottom: 1px solid var(--line); 
+            margin-bottom: 14px; 
+            flex-wrap: wrap; 
+        }
+
+        .tab { 
+            padding: 9px 13px; 
+            border: 0; 
+            border-radius: 8px 8px 0 0; 
+            background: transparent; 
+            color: #62748a; 
+            cursor: pointer; 
+            font: inherit; 
+        }
+
+        .tab.active { 
+            background: var(--blue2); 
+            color: var(--blue); 
+            font-weight: 700; 
+        }
+
+        .hidden { 
+            display: none !important; 
+        }
+
+        .table-wrap { 
+            overflow: auto; 
+            border: 1px solid var(--line); 
+            border-radius: 8px; 
+        }
+
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            min-width: 1100px; 
+            background: white; 
+        }
+
+        th, td { 
+            padding: 9px 10px; 
+            border-bottom: 1px solid #e8edf3; 
+            text-align: left; 
+            white-space: nowrap; 
+            max-width: 320px; 
+        }
+
+        th { 
+            position: sticky; 
+            top: 0; 
+            background: #edf3f9; 
+            color: #344b65; 
+            font-size: 12px; 
+            z-index: 1; 
+        }
+
+        tbody tr:hover { 
+            background: #f5f9fe; 
+        }
+
+        tbody tr.selected { 
+            background: #eaf3ff; 
+        }
+
+        .desc { 
+            max-width: 280px; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+        }
+
+        .muted { 
+            color: var(--muted); 
+            font-size: 12px; 
+        }
+
+        .filebox { 
+            border: 1px dashed #b8c8da; 
+            border-radius: 8px; 
+            padding: 10px; 
+            min-height: 60px; 
+        }
+
+        .file-row { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            gap: 8px; 
+            padding: 6px 0; 
+            border-bottom: 1px solid #edf1f5; 
+        }
+
+        .file-row:last-child { 
+            border-bottom: 0; 
+        }
+
+        .file-row span { 
+            overflow-wrap: anywhere; 
+        }
+
+        .form-actions { 
+            display: flex; 
+            gap: 8px; 
+            flex-wrap: wrap; 
+            margin-top: 14px; 
+        }
+
+        .badge { 
+            display: inline-block; 
+            padding: 3px 7px; 
+            border-radius: 99px; 
+            background: #eef3f8; 
+            color: #52657b; 
+            font-size: 11px; 
+        }
+
+        .stats { 
+            display: flex; 
+            gap: 10px; 
+            flex-wrap: wrap; 
+            margin-bottom: 12px; 
+        }
+
+        .stat { 
+            background: #f4f8fc; 
+            border: 1px solid var(--line); 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+        }
+
+        .stat strong { 
+            font-size: 17px; 
+            margin-right: 5px; 
+        }
+
+        @media(max-width:1050px) { 
+            .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } 
+        }
+
+        @media(max-width:620px) { 
+            header { padding: 18px; } 
+            .wrap { padding: 0 9px; } 
+            .fields { grid-template-columns: 1fr; } 
+            .field.span2 { grid-column: span 1; } 
+            .toolbar input { min-width: 100%; } 
+            .card { padding: 12px; } 
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Design Rules｜設計規範資料庫</h1>
+    <p>設計條件、干涉量、模擬／驗證紀錄與附件管理</p>
+</header>
+
+<div class="wrap">
+    
+    <!-- 頂部資料庫狀態提示 -->
+    <div id="projectStatus" class="status ok">已連結客戶／機種中央資料庫。</div>
+    
+    <!-- ========================================== -->
+    <!-- 3. 工具列：搜尋與常用按鈕                  -->
+    <!-- ========================================== -->
+    <div class="toolbar">
+        <input id="search" placeholder="搜尋設計編號、客戶、機種、說明、材料…">
+        
+        <select id="filterDept" style="max-width:150px">
+            <option value="">全部部門</option>
+            <option>轉部</option>
+            <option>定部</option>
+            <option>總組合</option>
+        </select>
+        
+        <select id="filterCustomer" style="max-width:190px">
+            <option value="">全部客戶</option>
+        </select>
+        
+        <button class="btn primary" id="newBtn">＋ 新增設計</button>
+        <button class="btn" id="refreshBtn">重新整理</button>
+        <button class="btn" id="exportBtn">匯出 JSON</button>
+        <button class="btn" id="importBtn">匯入 JSON</button>
+        <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 4. 設計清單顯示區 (VBA 的 ListView)        -->
+    <!-- ========================================== -->
+    <section class="card">
+        <div class="stats">
+            <div class="stat"><strong id="countAll">0</strong><span class="muted">筆設計紀錄</span></div>
+            <div class="stat"><strong id="countCustomers">0</strong><span class="muted">個可用客戶</span></div>
+            <div class="stat"><strong id="countModels">0</strong><span class="muted">個可用機種</span></div>
+        </div>
+        
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>設計編號</th>
+                        <th>部門</th>
+                        <th>客戶名稱</th>
+                        <th>機種名稱</th>
+                        <th>說明</th>
+                        <th>組裝方式</th>
+                        <th>馬達類型</th>
+                        <th>操作溫度</th>
+                        <th>軸材料</th>
+                        <th>孔材料</th>
+                        <th>軸外徑上限</th>
+                        <th>軸外徑下限</th>
+                        <th>孔內徑上限</th>
+                        <th>孔內徑下限</th>
+                        <th>最大干涉量</th>
+                        <th>最小干涉量</th>
+                        <th>輸入者</th>
+                        <th>設計日期</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="recordRows">
+                    <tr><td colspan="19" class="muted">尚無資料</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 5. 設計詳細資料編輯區 (VBA 的 InputForm)    -->
+    <!-- ========================================== -->
+    <section class="card" id="editorCard">
+        <div class="section-title">
+            <h2 id="formTitle">新增設計</h2>
+            <span id="idBadge" class="badge">尚未儲存</span>
+        </div>
+        
+        <!-- 頁籤按鈕 (VBA 的 MultiPage) -->
+        <div class="tabs">
+            <button class="tab active" data-tab="basic">基本資料與尺寸</button>
+            <button class="tab" data-tab="analysis">要求、模擬與驗證</button>
+            <button class="tab" data-tab="material">材料性質</button>
+            <button class="tab" data-tab="attachments">附件管理</button>
+        </div>
+        
+        <form id="designForm">
+            
+            <!-- 頁籤一：基本資料與尺寸 -->
+            <div class="tab-panel" id="panel-basic">
+                <div class="fields">
+                    <div class="field">
+                        <label for="department">部門／設計分類</label>
+                        <select id="department">
+                            <option>轉部</option>
+                            <option>定部</option>
+                            <option>總組合</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 已連結專案資料庫的下拉選單 -->
+                    <div class="field">
+                        <label for="customer">客戶名稱</label>
+                        <select id="customer"></select>
+                    </div>
+                    <div class="field">
+                        <label for="model">機種名稱</label>
+                        <select id="model"></select>
+                    </div>
+                    
+                    <div class="field">
+                        <label for="motorType">馬達類型</label>
+                        <select id="motorType">
+                            <option>轉向馬達</option>
+                            <option>煞車馬達</option>
+                            <option>懸吊馬達</option>
+                            <option>風扇馬達</option>
+                            <option>腳踏馬達</option>
+                            <option>防翻滾馬達</option>
+                            <option>PTO 馬達</option>
+                            <option>直流無刷馬達</option>
+                            <option>其他</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="shaftType">組裝方式／軸型式</label>
+                        <select id="shaftType">
+                            <option>光棒</option>
+                            <option>滾花</option>
+                            <option>四爪</option>
+                            <option>熱合</option>
+                            <option>干涉</option>
+                            <option>其他</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="operationTemp">操作溫度</label>
+                        <input id="operationTemp" placeholder="例如：-40～125 °C">
+                    </div>
+                    <div class="field">
+                        <label for="inputBy">輸入者</label>
+                        <select id="inputBy">
+                            <option value="">請選擇</option>
+                            <option>紀昱安</option>
+                            <option>陳子洛</option>
+                            <option>邱信傑</option>
+                            <option>詹勝景</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="modifiedBy">修訂者</label>
+                        <select id="modifiedBy">
+                            <option value="">請選擇</option>
+                            <option>紀昱安</option>
+                            <option>陳子洛</option>
+                            <option>邱信傑</option>
+                            <option>詹勝景</option>
+                        </select>
+                    </div>
+                    <div class="field span2">
+                        <label for="description">設計說明</label>
+                        <input id="description" placeholder="設計名稱／用途／關鍵說明">
+                    </div>
+                    <div class="field">
+                        <label for="designDate">設計日期</label>
+                        <input id="designDate" type="datetime-local">
+                    </div>
+                    <div class="field">
+                        <label for="modifiedDate">修訂日期</label>
+                        <input id="modifiedDate" type="datetime-local">
+                    </div>
+                </div>
+                
+                <div class="section-title" style="margin-top:22px">
+                    <h3>軸／孔尺寸（mm）</h3>
+                    <span class="muted">干涉量由尺寸自動計算</span>
+                </div>
+                
+                <div class="fields">
+                    <div class="field"><label for="shaftODMax">軸外徑上限</label><input id="shaftODMax" type="number" step="any" oninput="calcInterference()"></div>
+                    <div class="field"><label for="shaftODMin">軸外徑下限</label><input id="shaftODMin" type="number" step="any" oninput="calcInterference()"></div>
+                    <div class="field"><label for="holeIDMax">孔內徑上限</label><input id="holeIDMax" type="number" step="any" oninput="calcInterference()"></div>
+                    <div class="field"><label for="holeIDMin">孔內徑下限</label><input id="holeIDMin" type="number" step="any" oninput="calcInterference()"></div>
+                    <div class="field"><label for="ilMax">最大干涉長度</label><input id="ilMax" type="number" step="any"></div>
+                    <div class="field"><label for="ilMin">最小干涉長度</label><input id="ilMin" type="number" step="any"></div>
+                    <div class="field"><label for="interferenceMax">最大干涉量（軸上限－孔下限）</label><input id="interferenceMax" readonly></div>
+                    <div class="field"><label for="interferenceMin">最小干涉量（軸下限－孔上限）</label><input id="interferenceMin" readonly></div>
+                    <div class="field"><label for="shaftID">軸內徑</label><input id="shaftID" type="number" step="any"></div>
+                    <div class="field"><label for="holeOD">孔外徑</label><input id="holeOD" type="number" step="any"></div>
+                </div>
+            </div>
+            
+            <!-- 頁籤二：要求、模擬與驗證 -->
+            <div class="tab-panel hidden" id="panel-analysis">
+                <div class="fields">
+                    <div class="field span4"><label for="requirement">設計要求／判定標準</label><textarea id="requirement"></textarea></div>
+                    <div class="field span2"><label for="simulation">模擬說明</label><textarea id="simulation"></textarea></div>
+                    <div class="field span2"><label for="verification">驗證說明</label><textarea id="verification"></textarea></div>
+                </div>
+            </div>
+            
+            <!-- 頁籤三：材料性質 -->
+            <div class="tab-panel hidden" id="panel-material">
+                <div class="fields">
+                    <div class="field"><label for="shaftMatType">軸材料類別</label><input id="shaftMatType" placeholder="例如：碳鋼／不鏽鋼"></div>
+                    <div class="field"><label for="shaftMatName">軸材料名稱</label><input id="shaftMatName" placeholder="例如：S45C"></div>
+                    <div class="field"><label for="shaftMaterial">軸材料（顯示名稱）</label><input id="shaftMaterial"></div>
+                    <div class="field"><label for="shaftYM">軸彈性模數（GPa）</label><input id="shaftYM" type="number" step="any"></div>
+                    <div class="field"><label for="shaftPR">軸蒲松比</label><input id="shaftPR" type="number" step="any"></div>
+                    <div class="field"><label for="holeMatType">孔材料類別</label><input id="holeMatType" placeholder="例如：鋁合金"></div>
+                    <div class="field"><label for="holeMatName">孔材料名稱</label><input id="holeMatName" placeholder="例如：ADC12"></div>
+                    <div class="field"><label for="holeMaterial">孔材料（顯示名稱）</label><input id="holeMaterial"></div>
+                    <div class="field"><label for="holeYM">孔彈性模數（GPa）</label><input id="holeYM" type="number" step="any"></div>
+                    <div class="field"><label for="holePR">孔蒲松比</label><input id="holePR" type="number" step="any"></div>
+                </div>
+            </div>
+            
+            <!-- 頁籤四：附件管理 -->
+            <div class="tab-panel hidden" id="panel-attachments">
+                <div class="status">附件在此版本以瀏覽器本機資料庫保存，適合先測試介面。若要讓公司其他使用者共用附件，仍需由 server.py 提供上傳／下載 API。</div>
+                <div class="fields">
+                    <div class="field span2">
+                        <label for="simFiles">模擬檔案（可多選）</label>
+                        <input id="simFiles" type="file" multiple>
+                        <div id="simFileList" class="filebox muted">尚未加入檔案</div>
+                    </div>
+                    <div class="field span2">
+                        <label for="verifyFiles">驗證檔案（可多選）</label>
+                        <input id="verifyFiles" type="file" multiple>
+                        <div id="verifyFileList" class="filebox muted">尚未加入檔案</div>
+                    </div>
+                    <div class="field span2">
+                        <label for="otherFiles">其他附件（可多選）</label>
+                        <input id="otherFiles" type="file" multiple>
+                        <div id="otherFileList" class="filebox muted">尚未加入檔案</div>
+                    </div>
+                    <div class="field span2">
+                        <label for="attachmentDescription">附件說明</label>
+                        <textarea id="attachmentDescription"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 表單底部按鈕群組 -->
+            <div class="form-actions">
+                <button type="submit" class="btn primary">儲存設計</button>
+                <button type="button" class="btn" id="copyBtn">複製為新設計</button>
+                <button type="button" class="btn" id="clearBtn">清空表單</button>
+                <button type="button" class="btn danger" id="deleteBtn">刪除目前設計</button>
+                <span class="muted" id="saveHint" style="align-self:center">資料儲存在此瀏覽器的本機儲存區。</span>
+            </div>
+        </form>
+    </section>
+</div>
+
+<!-- ========================================== -->
+<!-- 6. JAVASCRIPT 核心動作邏輯                 -->
+<!-- ========================================== -->
+<script>
+'use strict';
+
+const RECORD_KEY = 'taigene_design_rules_db_v1';
+let records = [];
+let currentId = null;
+let pendingFiles = { sim: [], verify: [], other: [] };
+let savedFiles = { sim: [], verify: [], other: [] };
+
+const $ = id => document.getElementById(id);
+
+// 所有輸入欄位 ID 映射陣列
+const fieldIds = [
+    'department', 'customer', 'model', 'motorType', 'operationTemp', 'description', 
+    'shaftMaterial', 'shaftODMax', 'shaftODMin', 'shaftType', 'holeMaterial', 
+    'holeIDMax', 'holeIDMin', 'ilMax', 'ilMin', 'interferenceMax', 'interferenceMin', 
+    'requirement', 'simulation', 'verification', 'attachmentDescription', 'inputBy', 
+    'modifiedBy', 'designDate', 'modifiedDate', 'shaftMatType', 'shaftMatName', 
+    'holeMatType', 'holeMatName', 'shaftYM', 'shaftPR', 'holeYM', 'holePR', 'shaftID', 'holeOD'
+];
+
+// ==========================================
+// 💡 優化 1：對接中央專案資料庫的下拉選單
+// ==========================================
+function refreshProjectData() {
+    const editorCust = $('customer');
+    const filterCust = $('filterCustomer');
+    const editorVal = editorCust.value;
+    const filterVal = filterCust.value;
+
+    // A. 填充編輯區客戶下拉選單
+    populateCustomerDropdown('customer'); 
+    if (editorVal && Array.from(editorCust.options).some(o => o.value === editorVal)) {
+        editorCust.value = editorVal;
+    } else {
+        editorCust.selectedIndex = 0;
+    }
+    updateModelDropdown('customer', 'model'); 
+
+    // B. 填充篩選區客戶下拉選單
+    populateCustomerDropdown('filterCustomer'); 
+    if (!filterCust.querySelector('option[value=""]')) {
+        filterCust.insertBefore(new Option('全部客戶', ''), filterCust.firstChild);
+    }
+    if (filterVal && Array.from(filterCust.options).some(o => o.value === filterVal)) {
+        filterCust.value = filterVal;
+    } else {
+        filterCust.value = '';
+    }
+    
+    // C. 統計並更新資訊欄看板數據
+    const projectData = getProjectData(); 
+    const customerCount = Object.keys(projectData).length;
+    const modelCount = Object.values(projectData).flat().length;
+    $('countCustomers').textContent = customerCount;
+    $('countModels').textContent = modelCount;
+}
+
+// 預防特殊字元注入
+function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
+function escAttr(v) {
+    return esc(v);
+}
+
+// ==========================================
+// 💾 資料儲存、載入與清單渲染
+// ==========================================
+function loadRecords() {
+    records = JSON.parse(localStorage.getItem(RECORD_KEY) || '[]');
+    if (!Array.isArray(records)) records = [];
+    
+    // ==========================================
+    // 💡 關鍵變更：載入時自動依 DR 編號數字進行升冪排序
+    // ==========================================
+    sortRecordsByDrNumber();
+    renderRows();
+}
+
+function persist() {
+    // ==========================================
+    // 💡 關鍵變更：儲存時也自動進行編號排序，確保本機與顯示一致
+    // ==========================================
+    sortRecordsByDrNumber();
+    localStorage.setItem(RECORD_KEY, JSON.stringify(records));
+    renderRows();
+}
+
+// DR 編號排序輔助函數（從小排到大，例如 DR-0001 -> DR-0002 -> DR-0003）
+function sortRecordsByDrNumber() {
+    records.sort((a, b) => {
+        const numA = Number(String(a.id || '').replace(/^DR-/, '').replace(/\D/g, '')) || 0;
+        const numB = Number(String(b.id || '').replace(/^DR-/, '').replace(/\D/g, '')) || 0;
+        return numA - numB;
+    });
+}
+
+// 依照篩選器渲染設計清單表格
+function renderRows() {
+    const q = $('search').value.trim().toLowerCase();
+    const dept = $('filterDept').value;
+    const cust = $('filterCustomer').value;
+    
+    const list = records.filter(r => 
+        (!dept || r.department === dept) && 
+        (!cust || r.customer === cust) && 
+        (!q || [r.id, r.customer, r.model, r.description, r.shaftMaterial, r.holeMaterial, r.motorType, r.requirement].some(v => 
+            String(v || '').toLowerCase().includes(q)
+        ))
+    );
+    
+    $('countAll').textContent = records.length;
+    const tbody = $('recordRows');
+    
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="19" class="muted">沒有符合條件的設計紀錄</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = list.map(r => `
+        <tr class="${r.id === currentId ? 'selected' : ''}">
+            <td>${esc(r.id)}</td>
+            <td>${esc(r.department)}</td>
+            <td>${esc(r.customer)}</td>
+            <td>${esc(r.model)}</td>
+            <td class="desc" title="${escAttr(r.description)}">${esc(r.description)}</td>
+            <td>${esc(r.shaftType)}</td>
+            <td>${esc(r.motorType)}</td>
+            <td>${esc(r.operationTemp)}</td>
+            <td>${esc(r.shaftMaterial)}</td>
+            <td>${esc(r.holeMaterial)}</td>
+            <td>${esc(r.shaftODMax)}</td>
+            <td>${esc(r.shaftODMin)}</td>
+            <td>${esc(r.holeIDMax)}</td>
+            <td>${esc(r.holeIDMin)}</td>
+            <td>${esc(r.interferenceMax)}</td>
+            <td>${esc(r.interferenceMin)}</td>
+            <td>${esc(r.inputBy)}</td>
+            <td>${esc((r.designDate || '').replace('T', ' '))}</td>
+            <td><button class="btn small" onclick="editRecord('${escAttr(r.id)}')">載入</button></td>
+        </tr>
+    `).join('');
+}
+
+// 自動計算最大與最小干涉量
+function calcInterference() {
+    const a = Number($('shaftODMax').value);
+    const b = Number($('holeIDMin').value);
+    const c = Number($('shaftODMin').value);
+    const d = Number($('holeIDMax').value);
+    
+    $('interferenceMax').value = $('shaftODMax').value !== '' && $('holeIDMin').value !== '' ? (a - b).toFixed(4) : '';
+    $('interferenceMin').value = $('shaftODMin').value !== '' && $('holeIDMax').value !== '' ? (c - d).toFixed(4) : '';
+}
+
+// ==========================================
+// 💡 自動尋找回填中間被刪除的缺號 (方案 A)
+// ==========================================
+function nextId() {
+    const existingNums = records
+        .map(r => Number(String(r.id || '').replace(/^DR-/, '').replace(/\D/g, '')))
+        .filter(Number.isFinite);
+
+    let targetNum = 1;
+    while (existingNums.includes(targetNum)) {
+        targetNum++;
+    }
+
+    return 'DR-' + String(targetNum).padStart(4, '0');
+}
+
+function formValue() {
+    const r = {};
+    fieldIds.forEach(id => r[id] = $(id).value);
+    r.id = currentId || nextId();
+    r.files = JSON.parse(JSON.stringify(savedFiles));
+    r.updatedAt = new Date().toISOString();
+    return r;
+}
+
+function setForm(r = {}) {
+    fieldIds.forEach(id => $(id).value = r[id] ?? '');
+    currentId = r.id || null;
+    
+    // 客戶與機種選單值對接
+    if (r.customer) {
+        $('customer').value = r.customer;
+        updateModelDropdown('customer', 'model'); 
+        if (r.model) $('model').value = r.model;
+    }
+    
+    savedFiles = r.files || { sim: [], verify: [], other: [] };
+    pendingFiles = { sim: [], verify: [], other: [] };
+    
+    ['simFiles', 'verifyFiles', 'otherFiles'].forEach(id => $(id).value = '');
+    
+    renderFileLists();
+    $('formTitle').textContent = currentId ? '編輯設計 ' + currentId : '新增設計';
+    $('idBadge').textContent = currentId || '尚未儲存';
+    $('deleteBtn').disabled = !currentId;
+    
+    calcInterference();
+    renderRows();
+}
+
+function editRecord(id) {
+    const r = records.find(x => x.id === id);
+    if (!r) return;
+    setForm(r);
+    $('editorCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function clearForm() {
+    currentId = null;
+    setForm({
+        department: '轉部',
+        motorType: '轉向馬達',
+        shaftType: '光棒',
+        designDate: new Date().toISOString().slice(0, 16)
+    });
+    $('formTitle').textContent = '新增設計';
+    $('idBadge').textContent = '尚未儲存';
+    $('deleteBtn').disabled = true;
+}
+
+function copyCurrent() {
+    if (!currentId) {
+        alert('請先載入一個設計以進行複製。');
+        return;
+    }
+    const data = formValue();
+    data.id = null;
+    data.description = (data.description || '') + '_Copy';
+    data.inputBy = '';
+    data.modifiedBy = '';
+    data.designDate = new Date().toISOString().slice(0, 16);
+    data.modifiedDate = '';
+    data.files = JSON.parse(JSON.stringify(savedFiles));
+    setForm(data);
+    currentId = null;
+    $('formTitle').textContent = '複製為新設計';
+    $('idBadge').textContent = '儲存時產生新編號';
+}
+
+// ==========================================
+// 📂 附件管理邏輯（IndexedDB 本地儲存）
+// ==========================================
+function renderFileLists() {
+    [['sim', 'simFileList'], ['verify', 'verifyFileList'], ['other', 'otherFileList']].forEach(([k, id]) => {
+        const list = [...(savedFiles[k] || []), ...(pendingFiles[k] || [])];
+        $(id).innerHTML = list.length ? list.map((f, i) => `
+            <div class="file-row">
+                <span>${esc(f.name)} <span class="muted">${f.size ? `(${(f.size / 1024).toFixed(1)} KB)` : ''}</span></span>
+                <button type="button" class="btn small danger" onclick="removeFile('${k}',${i})">移除</button>
+            </div>
+        `).join('') : '尚未加入檔案';
+    });
+}
+
+function removeFile(k, i) {
+    const saved = savedFiles[k] || [];
+    if (i < saved.length) {
+        savedFiles[k].splice(i, 1);
+    } else {
+        pendingFiles[k].splice(i - saved.length, 1);
+    }
+    renderFileLists();
+}
+
+// 處理檔案拖放
+function handleFiles(k, input) {
+    pendingFiles[k].push(...Array.from(input.files || []));
+    renderFileLists();
+    input.value = '';
+}
+
+async function saveFilesForRecord(id) {
+    if (!('indexedDB' in window)) return;
+    const db = await openAttachmentDB();
+    for (const k of ['sim', 'verify', 'other']) {
+        const tx = db.transaction('files', 'readwrite');
+        const store = tx.objectStore('files');
+        for (const f of pendingFiles[k]) {
+            const fileId = `${id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            store.put({
+                fileId, designId: id, category: k, name: f.name, size: f.size, type: f.type, blob: f, lastModified: f.lastModified
+            });
+            savedFiles[k].push({ fileId, name: f.name, size: f.size, type: f.type });
+        }
+        await new Promise((res, rej) => {
+            tx.oncomplete = res;
+            tx.onerror = () => rej(tx.error);
+        });
+    }
+    db.close();
+    pendingFiles = { sim: [], verify: [], other: [] };
+}
+
+function openAttachmentDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open('taigene_design_rules_files_v1', 1);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('files')) {
+                const s = db.createObjectStore('files', { keyPath: 'fileId' });
+                s.createIndex('designId', 'designId', { unique: false });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function openFile(fileId) {
+    if (!fileId) {
+        alert('這是舊版附件記錄，尚未保存檔案本體。');
+        return;
+    }
+    try {
+        const db = await openAttachmentDB();
+        const tx = db.transaction('files', 'readonly');
+        const req = tx.objectStore('files').get(fileId);
+        req.onsuccess = () => {
+            const f = req.result;
+            if (!f) {
+                alert('找不到附件檔案本體。');
+                return;
+            }
+            const url = URL.createObjectURL(f.blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = f.name;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 30000);
+            db.close();
+        };
+        req.onerror = () => alert('讀取附件失敗');
+    } catch (e) {
+        alert('讀取附件失敗：' + e.message);
+    }
+}
+
+// ==========================================
+// 🔌 頁面載入與事件綁定
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    loadRecords();
+    refreshProjectData(); 
+    clearForm();
+
+    // A. 儲存表單提交事件
+    $('designForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!$('customer').value) {
+            alert('請先選擇客戶名稱。');
+            return;
+        }
+        if (!$('model').value) {
+            alert('請先選擇機種名稱。');
+            return;
+        }
+        const old = currentId ? records.find(r => r.id === currentId) : null;
+        const data = formValue();
+        
+        if (old) {
+            if (!confirm('要覆蓋更新目前的設計紀錄嗎？\n按「取消」可保留表單，並另存新設計。')) {
+                data.id = nextId();
+            }
+        } else {
+            data.id = nextId();
+        }
+        
+        if (!data.designDate) data.designDate = new Date().toISOString().slice(0, 16);
+        data.modifiedDate = new Date().toISOString().slice(0, 16);
+        if (!data.inputBy && old) data.inputBy = old.inputBy || '';
+        
+        await saveFilesForRecord(data.id);
+        data.files = JSON.parse(JSON.stringify(savedFiles));
+        
+        const idx = records.findIndex(r => r.id === data.id);
+        if (idx >= 0) records[idx] = data;
+        else records.push(data);
+        
+        currentId = data.id;
+        persist();
+        setForm(data);
+        $('saveHint').textContent = `已儲存 ${data.id}（本機瀏覽器）`;
+        alert(`設計資料已儲存：${data.id}`);
+    });
+
+    // B. 當客戶下拉選單變更，連動更新機種選單
+    $('customer').addEventListener('change', () => updateModelDropdown('customer', 'model'));
+    
+    // C. 其他按鈕事件綁定
+    $('newBtn').addEventListener('click', clearForm);
+    $('clearBtn').addEventListener('click', clearForm);
+    $('copyBtn').addEventListener('click', copyCurrent);
+    
+    $('deleteBtn').addEventListener('click', () => {
+        if (!currentId) return;
+        if (!confirm(`確定刪除 ${currentId}？此操作無法復原。`)) return;
+        records = records.filter(r => r.id !== currentId);
+        persist();
+        clearForm();
+    });
+    
+    $('search').addEventListener('input', renderRows);
+    $('filterDept').addEventListener('change', renderRows);
+    $('filterCustomer').addEventListener('change', renderRows);
+    
+    $('refreshBtn').addEventListener('click', () => {
+        refreshProjectData();
+        loadRecords();
+    });
+    
+    // 綁定檔案上傳事件
+    [['sim', 'simFiles'], ['verify', 'verifyFiles'], ['other', 'otherFiles']].forEach(([k, id]) => {
+        $(id).addEventListener('change', () => handleFiles(k, $(id)));
+    });
+    
+    // 頁籤 (Tab) 切換事件
+    document.querySelectorAll('.tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === btn));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('hidden', p.id !== 'panel-' + btn.dataset.tab));
+        });
+    });
+    
+    // 匯出功能
+    $('exportBtn').addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), records }, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'Design_Rules_Backup.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+    
+    // 匯入功能
+    $('importBtn').addEventListener('click', () => $('importFile').click());
+    $('importFile').addEventListener('change', async e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        try {
+            const obj = JSON.parse(await f.text());
+            const arr = Array.isArray(obj) ? obj : obj.records;
+            if (!Array.isArray(arr)) throw new Error('JSON 格式中找不到 records 陣列');
+            if (!confirm(`將匯入 ${arr.length} 筆紀錄並與目前資料合併；同編號資料會被覆蓋。是否繼續？`)) return;
+            const map = new Map(records.map(r => [r.id, r]));
+            arr.forEach(r => { if (r.id) map.set(r.id, r); });
+            records = [...map.values()];
+            persist();
+            alert('匯入完成。');
+        } catch (err) {
+            alert('匯入失敗：' + err.message);
+        } finally {
+            e.target.value = '';
+        }
+    });
+    
+    // ==========================================
+    // 🔌 焦點與同步監聽事件 (焦點瞬間即時更新)
+    // ==========================================
+    $('customer').addEventListener('focus', refreshProjectData);
+    $('filterCustomer').addEventListener('focus', refreshProjectData);
+    
+    window.addEventListener('storage', (e) => {
+        if (e.key === STORAGE_KEY_PROJECTS) {
+            console.log('偵測到客戶資料庫變更，正在自動刷新下拉選單...');
+            refreshProjectData();
+        }
+    });
+});
+
+// 將全域函數暴露出去
+window.calcInterference = calcInterference;
+window.editRecord = editRecord;
+window.removeFile = removeFile;
+window.openFile = openFile;
+</script>
+</body>
+</html>

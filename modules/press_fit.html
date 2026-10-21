@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../css/portal-style.css">
+</head>
+<body>
+
+  <div class="main-grid">
+    <!-- 軸 (Shaft) 設定 -->
+    <div class="card">
+      <div class="card-title">🔩 軸 (Shaft) 設定</div>
+      <div class="form-group">
+        <label>材料規格</label>
+        <select id="cmbShaftMat" onchange="onShaftMatChange()">
+          <option value="custom">自定義 (雙擊彈性模數有快捷鍵)</option>
+          <option value="45_steel" selected>45#鋼 (E=210 GPa, v=0.30, Yield=355 MPa)</option>
+          <option value="sus304">SUS304 不鏽鋼 (E=193 GPa, v=0.29, Yield=205 MPa)</option>
+          <option value="silicon_steel">矽鋼片 (E=185 GPa, v=0.30, Yield=310 MPa)</option>
+          <option value="al6061">6061-T6 鋁合金 (E=70 GPa, v=0.33, Yield=276 MPa)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>軸外徑 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftOD" value="52.0000" step="0.01" oninput="calcAll()">
+          <span class="spin-btn" onclick="spin('txtShaftOD', 0.01)">▲</span>
+          <span class="spin-btn" onclick="spin('txtShaftOD', -0.01)">▼</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>外徑公差 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftODTolerance" value="0.0300" step="0.005" oninput="calcAll()">
+          <span class="spin-btn" onclick="spin('txtShaftODTolerance', 0.005)">▲</span>
+          <span class="spin-btn" onclick="spin('txtShaftODTolerance', -0.005)">▼</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>公差類型</label>
+        <div class="radio-group">
+          <label><input type="radio" name="shaftTol" value="both" checked onchange="calcAll()"> ±公差</label>
+          <label><input type="radio" name="shaftTol" value="pos" onchange="calcAll()"> +公差</label>
+          <label><input type="radio" name="shaftTol" value="neg" onchange="calcAll()"> -公差</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>軸內徑 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftID" value="46.4000" step="0.1" oninput="calcAll()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>彈性模數 (GPa)</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftE" value="210" oninput="calcAll()" ondblclick="quickSteel('txtShaftE', 'txtShaftNu')">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>蒲松比</label>
+        <div class="input-box">
+          <input type="number" id="txtShaftNu" value="0.30" step="0.01" oninput="calcAll()">
+        </div>
+      </div>
+    </div>
+
+    <!-- 孔 (Hole) 設定 -->
+    <div class="card">
+      <div class="card-title">🕳️ 孔 (Hole) 設定</div>
+      <div class="form-group">
+        <label>材料規格</label>
+        <select id="cmbHoleMat" onchange="onHoleMatChange()">
+          <option value="custom">自定義 (雙擊彈性模數有快捷鍵)</option>
+          <option value="45_steel">45#鋼 (E=210 GPa, v=0.30, Yield=355 MPa)</option>
+          <option value="sus304">SUS304 不鏽鋼 (E=193 GPa, v=0.29, Yield=205 MPa)</option>
+          <option value="silicon_steel" selected>矽鋼片 (E=185 GPa, v=0.30, Yield=310 MPa)</option>
+          <option value="al6061">6061-T6 鋁合金 (E=70 GPa, v=0.33, Yield=276 MPa)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>孔內徑 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleID" value="51.9400" step="0.01" oninput="calcAll()">
+          <span class="spin-btn" onclick="spin('txtHoleID', 0.01)">▲</span>
+          <span class="spin-btn" onclick="spin('txtHoleID', -0.01)">▼</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>內徑公差 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleIDTolerance" value="0.0150" step="0.005" oninput="calcAll()">
+          <span class="spin-btn" onclick="spin('txtHoleIDTolerance', 0.005)">▲</span>
+          <span class="spin-btn" onclick="spin('txtHoleIDTolerance', -0.005)">▼</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>公差類型</label>
+        <div class="radio-group">
+          <label><input type="radio" name="holeTol" value="both" checked onchange="calcAll()"> ±公差</label>
+          <label><input type="radio" name="holeTol" value="pos" onchange="calcAll()"> +公差</label>
+          <label><input type="radio" name="holeTol" value="neg" onchange="calcAll()"> -公差</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>孔外徑 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleOD" value="54.3400" step="0.01" oninput="calcAll()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>彈性模數 (GPa)</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleE" value="185" oninput="calcAll()" ondblclick="quickSteel('txtHoleE', 'txtHoleNu')">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>蒲松比</label>
+        <div class="input-box">
+          <input type="number" id="txtHoleNu" value="0.30" step="0.01" oninput="calcAll()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>摩擦係數 (μ)</label>
+        <div class="input-box">
+          <input type="number" id="txtFriction" value="0.15" step="0.01" oninput="calcAll()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>干涉長度 (mm)</label>
+        <div class="input-box">
+          <input type="number" id="txtInterferenceLen" value="20.0" step="0.5" oninput="calcAll()">
+        </div>
+      </div>
+    </div>
+
+    <!-- 📊 分析結果與拉梅應力 -->
+    <div class="card">
+      <div class="card-title">📊 分析與計算結果</div>
+      <div class="form-group" style="align-items:flex-start;">
+        <label style="width:70px; margin-top:4px;">專案說明</label>
+        <textarea id="txtProjectNote" placeholder="在此輸入設計備忘錄與說明..."></textarea>
+      </div>
+
+      <table class="res-table">
+        <tr><th>分析項目</th><th>Max</th><th>Min</th><th>Avg</th></tr>
+        <tr><th>干涉量 (mm)</th><td id="res_IntMax">0</td><td id="res_IntMin">0</td><td id="res_IntAvg">0</td></tr>
+        <tr><th>干涉面壓 (MPa)</th><td id="res_StressMax">0</td><td id="res_StressMin">0</td><td id="res_StressAvg">0</td></tr>
+        <tr><th>插入力 (N)</th><td id="res_ForceMax">0</td><td id="res_ForceMin">0</td><td id="res_ForceAvg">0</td></tr>
+        <tr><th>傳遞扭矩 (N·m)</th><td id="res_TorqueMax">0</td><td id="res_TorqueMin">0</td><td id="res_TorqueAvg">0</td></tr>
+      </table>
+
+      <div style="font-weight:bold; margin-top:12px; font-size:12px; color:#1e3a8a;">拉梅應力分析 (Lamé Stress Analysis)</div>
+      <table class="res-table">
+        <tr>
+          <th style="width:75px;">位置</th>
+          <th>徑向應力</th>
+          <th>環向應力</th>
+          <th>等效應力</th>
+          <th style="width:85px; text-align:center;">評估(80%)</th>
+        </tr>
+        <tr>
+          <td>軸外徑 (OD)</td>
+          <td id="res_ShaftOD_Rad">0</td>
+          <td id="res_ShaftOD_Shear">0</td>
+          <td id="res_ShaftOD_VM">0</td>
+          <td id="status_ShaftOD" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>軸內徑 (ID)</td>
+          <td id="res_ShaftID_Rad">0</td>
+          <td id="res_ShaftID_Shear">0</td>
+          <td id="res_ShaftID_VM">0</td>
+          <td id="status_ShaftID" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>孔內徑 (ID)</td>
+          <td id="res_HoleID_Rad">0</td>
+          <td id="res_HoleID_Shear">0</td>
+          <td id="res_HoleID_VM">0</td>
+          <td id="status_HoleID" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>孔外徑 (OD)</td>
+          <td id="res_HoleOD_Rad">0</td>
+          <td id="res_HoleOD_Shear">0</td>
+          <td id="res_HoleOD_VM">0</td>
+          <td id="status_HoleOD" style="text-align:center;">-</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // 材料屈服強度快取
+    const yields = { "45_steel": 355, "sus304": 205, "silicon_steel": 310, "al6061": 276, "custom": 250 };
+
+    function onShaftMatChange() {
+      const val = document.getElementById('cmbShaftMat').value;
+      const ym = document.getElementById('txtShaftE');
+      const pr = document.getElementById('txtShaftNu');
+      if (val === "45_steel") { ym.value = 210; pr.value = 0.30; }
+      else if (val === "sus304") { ym.value = 193; pr.value = 0.29; }
+      else if (val === "silicon_steel") { ym.value = 185; pr.value = 0.30; }
+      else if (val === "al6061") { ym.value = 70; pr.value = 0.33; }
+      ym.readOnly = (val !== "custom");
+      pr.readOnly = (val !== "custom");
+      calcAll();
+    }
+
+    function onHoleMatChange() {
+      const val = document.getElementById('cmbHoleMat').value;
+      const ym = document.getElementById('txtHoleE');
+      const pr = document.getElementById('txtHoleNu');
+      if (val === "45_steel") { ym.value = 210; pr.value = 0.30; }
+      else if (val === "sus304") { ym.value = 193; pr.value = 0.29; }
+      else if (val === "silicon_steel") { ym.value = 185; pr.value = 0.30; }
+      else if (val === "al6061") { ym.value = 70; pr.value = 0.33; }
+      ym.readOnly = (val !== "custom");
+      pr.readOnly = (val !== "custom");
+      calcAll();
+    }
+
+    function quickSteel(ymId, prId) {
+      if (document.getElementById('cmbShaftMat').value !== "custom" && ymId.includes('Shaft')) return;
+      if (document.getElementById('cmbHoleMat').value !== "custom" && ymId.includes('Hole')) return;
+      const choice = prompt("請選擇快捷金屬參數：\n【1】普通鋼 (E=210, v=0.30)\n【2】不鏽鋼 (E=193, v=0.30)\n【3】鋁合金 (E=70, v=0.33)\n【4】黃銅 (E=105, v=0.34)");
+      if (choice === "1") { document.getElementById(ymId).value = 210; document.getElementById(prId).value = 0.30; }
+      else if (choice === "2") { document.getElementById(ymId).value = 193; document.getElementById(prId).value = 0.30; }
+      else if (choice === "3") { document.getElementById(ymId).value = 70; document.getElementById(prId).value = 0.33; }
+      else if (choice === "4") { document.getElementById(ymId).value = 105; document.getElementById(prId).value = 0.34; }
+      calcAll();
+    }
+
+    function spin(id, step) {
+      const el = document.getElementById(id);
+      el.value = (parseFloat(el.value) + step).toFixed(4);
+      calcAll();
+    }
+
+    function calcAll() {
+      const sOD = parseFloat(document.getElementById('txtShaftOD').value) || 0;
+      const sTol = parseFloat(document.getElementById('txtShaftODTolerance').value) || 0;
+      const sTolType = document.querySelector('input[name="shaftTol"]:checked').value;
+      const sID = parseFloat(document.getElementById('txtShaftID').value) || 0.000001;
+      const sE = parseFloat(document.getElementById('txtShaftE').value) || 1;
+      const sNu = parseFloat(document.getElementById('txtShaftNu').value) || 0.3;
+
+      const hID = parseFloat(document.getElementById('txtHoleID').value) || 0;
+      const hTol = parseFloat(document.getElementById('txtHoleIDTolerance').value) || 0;
+      const hTolType = document.querySelector('input[name="holeTol"]:checked').value;
+      const hOD = parseFloat(document.getElementById('txtHoleOD').value) || 0;
+      const hE = parseFloat(document.getElementById('txtHoleE').value) || 1;
+      const hNu = parseFloat(document.getElementById('txtHoleNu').value) || 0.3;
+
+      const mu = parseFloat(document.getElementById('txtFriction').value) || 0;
+      const intLen = parseFloat(document.getElementById('txtInterferenceLen').value) || 0;
+
+      let sODMax = sOD, sODMin = sOD;
+      if (sTolType === 'both') { sODMax = sOD + sTol; sODMin = sOD - sTol; }
+      else if (sTolType === 'pos') { sODMax = sOD + sTol; sODMin = sOD; }
+      else if (sTolType === 'neg') { sODMax = sOD; sODMin = sOD - sTol; }
+
+      let hIDMax = hID, hIDMin = hID;
+      if (hTolType === 'both') { hIDMax = hID + hTol; hIDMin = hID - hTol; }
+      else if (hTolType === 'pos') { hIDMax = hID + hTol; hIDMin = hID; }
+      else if (hTolType === 'neg') { hIDMax = hID; hIDMin = hID - hTol; }
+
+      const intMax = sODMax - hIDMin;
+      const intMin = sODMin - hIDMax;
+      const intAvg = (intMax + intMin) / 2;
+
+      document.getElementById('res_IntMax').innerText = intMax.toFixed(4);
+      document.getElementById('res_IntMin').innerText = intMin.toFixed(4);
+      document.getElementById('res_IntAvg').innerText = intAvg.toFixed(4);
+
+      const sOD_m = sOD / 1000, sID_m = sID / 1000, hOD_m = hOD / 1000;
+      const denomHole = (1 / (hE * 1e10)) * (((Math.pow(hOD_m, 2) + Math.pow(sOD_m, 2)) / (Math.pow(hOD_m, 2) - Math.pow(sOD_m, 2))) + hNu);
+      const denomShaft = (1 / (sE * 1e10)) * (((Math.pow(sOD_m, 2) + Math.pow(sID_m, 2)) / (Math.pow(sOD_m, 2) - Math.pow(sID_m, 2))) - sNu);
+      const denomTotal = (sOD_m / 2) * (denomHole + denomShaft) * 1e10;
+
+      if (denomTotal === 0 || isNaN(denomTotal)) return;
+
+      const pMax = (intMax / 2) / denomTotal;
+      const pMin = (intMin / 2) / denomTotal;
+      const pAvg = (intAvg / 2) / denomTotal;
+
+      document.getElementById('res_StressMax').innerText = pMax.toFixed(4);
+      document.getElementById('res_StressMin').innerText = pMin.toFixed(4);
+      document.getElementById('res_StressAvg').innerText = pAvg.toFixed(4);
+
+      const contactArea = sOD * Math.PI * intLen;
+      const fMax = pMax * contactArea * mu;
+      const fMin = pMin * contactArea * mu;
+      const fAvg = pAvg * contactArea * mu;
+
+      document.getElementById('res_ForceMax').innerText = fMax.toFixed(2);
+      document.getElementById('res_ForceMin').innerText = fMin.toFixed(2);
+      document.getElementById('res_ForceAvg').innerText = fAvg.toFixed(2);
+
+      const tMax = ((sOD / 2) * fMax) / 1000;
+      const tMin = ((sOD / 2) * fMin) / 1000;
+      const tAvg = ((sOD / 2) * fAvg) / 1000;
+
+      document.getElementById('res_TorqueMax').innerText = tMax.toFixed(2);
+      document.getElementById('res_TorqueMin').innerText = tMin.toFixed(2);
+      document.getElementById('res_TorqueAvg').innerText = tAvg.toFixed(2);
+
+      const r_si = sID / 2, r_so = sOD / 2, r_ho = hOD / 2;
+      const lameBShaft = -pMax / ((1 / Math.pow(r_si, 2)) - (1 / Math.pow(r_so, 2)));
+      const lameAShaft = lameBShaft / Math.pow(r_si, 2);
+
+      const lameBHole = -pMax / ((1 / Math.pow(r_ho, 2)) - (1 / Math.pow(r_so, 2)));
+      const lameAHole = lameBHole / Math.pow(r_ho, 2);
+
+      const sOD_Shear = lameAShaft + (lameBShaft / Math.pow(r_so, 2));
+      const sOD_Rad = lameAShaft - (lameBShaft / Math.pow(r_so, 2));
+      const sOD_VM = Math.sqrt(Math.pow(sOD_Shear, 2) + Math.pow(sOD_Rad, 2) - (sOD_Shear * sOD_Rad));
+
+      const sID_Shear = lameAShaft + (lameBShaft / Math.pow(r_si, 2));
+      const sID_Rad = lameAShaft - (lameBShaft / Math.pow(r_si, 2));
+      const sID_VM = Math.sqrt(Math.pow(sID_Shear, 2) + Math.pow(sID_Rad, 2) - (sID_Shear * sID_Rad));
+
+      const hID_Shear = lameAHole + (lameBHole / Math.pow(r_so, 2));
+      const hID_Rad = lameAHole - (lameBHole / Math.pow(r_so, 2));
+      const hID_VM = Math.sqrt(Math.pow(hID_Rad, 2) - (hID_Rad * hID_Shear) + Math.pow(hID_Shear, 2));
+
+      const hOD_Shear = lameAHole + (lameBHole / Math.pow(r_ho, 2));
+      const hOD_Rad = lameAHole - (lameBHole / Math.pow(r_ho, 2));
+      const hOD_VM = Math.sqrt(Math.pow(hOD_Rad, 2) - (hOD_Rad * hOD_Shear) + Math.pow(hOD_Shear, 2));
+
+      document.getElementById('res_ShaftOD_Rad').innerText = sOD_Rad.toFixed(2);
+      document.getElementById('res_ShaftOD_Shear').innerText = sOD_Shear.toFixed(2);
+      document.getElementById('res_ShaftOD_VM').innerText = sOD_VM.toFixed(2);
+
+      document.getElementById('res_ShaftID_Rad').innerText = sID_Rad.toFixed(2);
+      document.getElementById('res_ShaftID_Shear').innerText = sID_Shear.toFixed(2);
+      document.getElementById('res_ShaftID_VM').innerText = sID_VM.toFixed(2);
+
+      document.getElementById('res_HoleID_Rad').innerText = hID_Rad.toFixed(2);
+      document.getElementById('res_HoleID_Shear').innerText = hID_Shear.toFixed(2);
+      document.getElementById('res_HoleID_VM').innerText = hID_VM.toFixed(2);
+
+      document.getElementById('res_HoleOD_Rad').innerText = hOD_Rad.toFixed(2);
+      document.getElementById('res_HoleOD_Shear').innerText = hOD_Shear.toFixed(2);
+      document.getElementById('res_HoleOD_VM').innerText = hOD_VM.toFixed(2);
+
+      const sYield = yields[document.getElementById('cmbShaftMat').value] || 250;
+      const hYield = yields[document.getElementById('cmbHoleMat').value] || 250;
+
+      checkYield('status_ShaftOD', sOD_VM, sYield);
+      checkYield('status_ShaftID', sID_VM, sYield);
+      checkYield('status_HoleID', hID_VM, hYield);
+      checkYield('status_HoleOD', hOD_VM, hYield);
+    }
+
+    function checkYield(elId, val, yieldStress) {
+      const el = document.getElementById(elId);
+      if (val >= (yieldStress * 0.8)) {
+        el.innerText = `⚠️ 過載 (${val.toFixed(0)} ≥ ${(yieldStress * 0.8).toFixed(0)})`;
+        el.className = 'highlight-alert';
+      } else {
+        el.innerText = `✅ 安全 (< ${(yieldStress * 0.8).toFixed(0)})`;
+        el.className = 'highlight-pass';
+      }
+    }
+
+    window.onload = function() { calcAll(); };
+  </script>
+</body>
+</html>

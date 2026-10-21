@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專案客戶與機種管理 - Engineering Portal</title>
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --accent-color: #2563eb;
+            --bg-color: #f8fafc;
+            --panel-bg: #ffffff;
+            --border-color: #cbd5e1;
+            --text-color: #1e293b;
+            --danger-color: #dc2626;
+            --success-color: #16a34a;
+            --warning-color: #d97706;
+        }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { margin: 0; padding: 24px; background-color: var(--bg-color); color: var(--text-color); }
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        /* 標題與工具列 */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 12px; }
+        .header h1 { margin: 0; font-size: 1.5rem; color: var(--primary-color); }
+        
+        .btn-group { display: flex; gap: 8px; }
+        button { cursor: pointer; padding: 8px 16px; border: 1px solid transparent; border-radius: 4px; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: var(--accent-color); color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-outline { background: #fff; border-color: var(--border-color); color: var(--text-color); }
+        .btn-outline:hover { background: #f1f5f9; }
+        .btn-danger { background: var(--danger-color); color: #fff; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-warning { background: var(--warning-color); color: #fff; }
+        .btn-warning:hover { background: #b45309; }
+
+        /* 版面配置 */
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .card h2 { margin-top: 0; margin-bottom: 15px; font-size: 1.15rem; color: var(--primary-color); border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+        
+        /* 表單樣式 */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.9rem; }
+        .form-control { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.9rem; background-color: #fff; }
+        .form-control:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+        
+        /* 表格與列表 */
+        .table-container { margin-top: 15px; max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        th { background: #f1f5f9; position: sticky; top: 0; z-index: 10; color: #334155; }
+        tr:hover { background-color: #f8fafc; }
+        
+        .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tag { background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-flex; align-items: center; }
+        
+        /* 隱藏彈出視窗(用來做編輯修改) */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #fff; padding: 24px; border-radius: 6px; width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    </style>
+</head>
+<body>
+<div class="container">
+    
+    <!-- 頂部標題與核心配置工具 -->
+    <div class="header">
+        <h1>🛠️ 專案客戶與機種控制面板</h1>
+        <div class="btn-group">
+            <button class="btn-outline" onclick="exportConfig()">💾 匯出備份 JSON</button>
+            <button class="btn-outline" onclick="document.getElementById('importFile').click()">📂 匯入設定</button>
+            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importConfig(event)">
+            <button class="btn-danger" onclick="resetToDefault()">🔄 重設為預設值</button>
+        </div>
+    </div>
+
+    <!-- 左右雙欄控制表單 -->
+    <div class="grid-layout">
+        
+        <!-- 左側：客戶管理表單 (建立、修改、刪除客戶) -->
+        <div class="card">
+            <h2>🏢 客戶管理表單</h2>
+            <div class="form-group">
+                <label for="txtCustName">➕ 新增客戶名稱</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="txtCustName" class="form-control" placeholder="例如: Stellantis">
+                    <button class="btn-primary" onclick="addCustomer()" style="white-space: nowrap;">新增</button>
+                </div>
+            </div>
+            
+            <label>現有客戶清單（點擊「修改」可更名，點擊「刪除」會移除名下所有機種）</label>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>客戶名稱</th>
+                            <th style="width: 130px; text-align: center;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbCustomers"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 右側：機種管理表單 (建立、修改、刪除機種) -->
+        <div class="card">
+            <h2>🚗 機種管理表單</h2>
+            <div class="form-group">
+                <label for="selCustSelect">選擇目標客戶</label>
+                <select id="selCustSelect" class="form-control" onchange="renderModelsTable()"></select>
+            </div>
+            <div class="form-group">
+                <label for="txtModelName">➕ 新增機種名稱</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="txtModelName" class="form-control" placeholder="例如: EPS-G3">
+                    <button class="btn-primary" onclick="addModel()" style="white-space: nowrap;">新增</button>
+                </div>
+            </div>
+            
+            <label>該客戶名下的機種清單（點擊「修改」可更名，點擊「刪除」移除單一機種）</label>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>機種名稱</th>
+                            <th style="width: 130px; text-align: center;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbModels"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- 彈出編輯視窗 (Modal) -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h3 id="modalTitle" style="margin-top:0; color:var(--primary-color);">修改資料</h3>
+        <input type="hidden" id="editType">
+        <input type="hidden" id="editKey">
+        <input type="hidden" id="editSubKey">
+        <div class="form-group">
+            <label for="txtEditValue">新名稱</label>
+            <input type="text" id="txtEditValue" class="form-control">
+        </div>
+        <div class="btn-group" style="justify-content: flex-end; margin-top: 15px;">
+            <button class="btn-outline" onclick="closeModal()">取消</button>
+            <button class="btn-primary" onclick="saveEdit()">確認修改</button>
+        </div>
+    </div>
+</div>
+
+<!-- 引入中央資料庫核心 logic -->
+<script src="../assets/js/project_db.js"></script>
+<script>
+    // 初始化頁面
+    window.addEventListener('DOMContentLoaded', () => {
+        initUI();
+    });
+
+    function initUI() {
+        renderCustomerTable();
+        populateCustomerSelect();
+        renderModelsTable();
+    }
+
+    // 1. 渲染左側客戶表格
+    function renderCustomerTable() {
+        const data = getProjectData();
+        const tbody = document.getElementById('tbCustomers');
+        tbody.innerHTML = '';
+
+        Object.keys(data).forEach(cust => {
+            const tr = document.createElement('tr');
+            
+            const tdName = document.createElement('td');
+            tdName.innerHTML = `<strong>${cust}</strong>`;
+            tr.appendChild(tdName);
+
+            const tdAction = document.createElement('td');
+            tdAction.style.textAlign = 'center';
+            if (cust !== "無") {
+                tdAction.innerHTML = `
+                    <button class="btn-outline" style="padding: 3px 8px; font-size: 0.8rem;" onclick="openEditModal('customer', '${cust}')">修改</button>
+                    <button class="btn-outline" style="padding: 3px 8px; font-size: 0.8rem; color: var(--danger-color); border-color:#fca5a5;" onclick="deleteCustomer('${cust}')">刪除</button>
+                `;
+            } else {
+                tdAction.innerHTML = `<span style="color:#94a3b8; font-size:0.8rem;">系統預設</span>`;
+            }
+            tr.appendChild(tdAction);
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 2. 渲染右側客戶下拉選單
+    function populateCustomerSelect() {
+        const select = document.getElementById('selCustSelect');
+        const prevVal = select.value;
+        const data = getProjectData();
+        
+        select.innerHTML = '';
+        Object.keys(data).forEach(cust => {
+            if(cust !== "無") {
+                const opt = new Option(cust, cust);
+                select.appendChild(opt);
+            }
+        });
+        
+        if (Array.from(select.options).some(o => o.value === prevVal)) {
+            select.value = prevVal;
+        }
+    }
+
+    // 3. 渲染右側對應客戶的機種表格
+    function renderModelsTable() {
+        const customer = document.getElementById('selCustSelect').value;
+        const tbody = document.getElementById('tbModels');
+        tbody.innerHTML = '';
+
+        if (!customer) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#94a3b8;">請先建立或選擇一個客戶</td></tr>';
+            return;
+        }
+
+        const data = getProjectData();
+        const models = data[customer] || [];
+
+        models.forEach(model => {
+            const tr = document.createElement('tr');
+            
+            const tdName = document.createElement('td');
+            tdName.textContent = model;
+            tr.appendChild(tdName);
+
+            const tdAction = document.createElement('td');
+            tdAction.style.textAlign = 'center';
+            if (model !== "無") {
+                tdAction.innerHTML = `
+                    <button class="btn-outline" style="padding: 3px 8px; font-size: 0.8rem;" onclick="openEditModal('model', '${customer}', '${model}')">修改</button>
+                    <button class="btn-outline" style="padding: 3px 8px; font-size: 0.8rem; color: var(--danger-color); border-color:#fca5a5;" onclick="deleteModel('${customer}', '${model}')">刪除</button>
+                `;
+            } else {
+                tdAction.innerHTML = `<span style="color:#94a3b8; font-size:0.8rem;">系統預設</span>`;
+            }
+            tr.appendChild(tdAction);
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- 新增控制邏輯 ---
+    function addCustomer() {
+        const nameInput = document.getElementById('txtCustName');
+        const name = nameInput.value.trim();
+        if (!name) return alert("請輸入客戶名稱！");
+
+        const data = getProjectData();
+        if (data[name]) return alert("此客戶已存在！");
+
+        data[name] = ["無"]; // 新增客戶時預設帶有"無"機種
+        saveProjectData(data);
+        nameInput.value = '';
+        initUI();
+    }
+
+    function addModel() {
+        const customer = document.getElementById('selCustSelect').value;
+        if (!customer) return alert("請先選取欲新增機種的客戶！");
+
+        const modelInput = document.getElementById('txtModelName');
+        const model = modelInput.value.trim();
+        if (!model) return alert("請輸入機種名稱！");
+
+        const data = getProjectData();
+        if (!data[customer]) data[customer] = ["無"];
+        if (data[customer].includes(model)) return alert("該客戶旗下已存在此機種名稱！");
+
+        data[customer].push(model);
+        saveProjectData(data);
+        modelInput.value = '';
+        renderModelsTable();
+    }
+
+    // --- 刪除控制邏輯 ---
+    function deleteCustomer(customer) {
+        if (!confirm(`⚠️ 警告：確定要刪除客戶 [${customer}] 嗎？\n刪除後，該客戶旗下的所有機種資料也將一併移除！`)) return;
+        const data = getProjectData();
+        delete data[customer];
+        saveProjectData(data);
+        initUI();
+    }
+
+    function deleteModel(customer, model) {
+        if (!confirm(`確定刪除客戶 [${customer}] 旗下的機種 [${model}] 嗎？`)) return;
+        const data = getProjectData();
+        data[customer] = (data[customer] || []).filter(m => m !== model);
+        saveProjectData(data);
+        renderModelsTable();
+    }
+
+    // --- 彈出式修改表單邏輯 ---
+    function openEditModal(type, key, subKey = '') {
+        document.getElementById('editType').value = type;
+        document.getElementById('editKey').value = key;
+        document.getElementById('editSubKey').value = subKey;
+        
+        const title = document.getElementById('modalTitle');
+        const input = document.getElementById('txtEditValue');
+        
+        if (type === 'customer') {
+            title.textContent = `修改客戶 [${key}] 的名稱`;
+            input.value = key;
+        } else {
+            title.textContent = `修改機種 [${subKey}] 的名稱`;
+            input.value = subKey;
+        }
+        
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    function saveEdit() {
+        const type = document.getElementById('editType').value;
+        const key = document.getElementById('editKey').value;
+        const subKey = document.getElementById('editSubKey').value;
+        const newVal = document.getElementById('txtEditValue').value.trim();
+
+        if (!newVal) return alert("名稱不可為空！");
+
+        const data = getProjectData();
+
+        if (type === 'customer') {
+            if (newVal === key) return closeModal();
+            if (data[newVal]) return alert("此客戶名稱已存在！");
+            
+            // 轉移舊客戶底下的資料到新名稱下
+            data[newVal] = data[key];
+            delete data[key];
+            saveProjectData(data);
+            initUI();
+        } else {
+            if (newVal === subKey) return closeModal();
+            if (data[key].includes(newVal)) return alert("此機種名稱在該客戶旗下已存在！");
+            
+            // 更換該客戶名下的特定機種名稱
+            const idx = data[key].indexOf(subKey);
+            if (idx !== -1) {
+                data[key][idx] = newVal;
+            }
+            saveProjectData(data);
+            renderModelsTable();
+        }
+        closeModal();
+    }
+
+    // --- 資料備份與恢復 ---
+    function exportConfig() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(getProjectData(), null, 2));
+        const a = document.createElement('a');
+        a.setAttribute("href", dataStr);
+        a.setAttribute("download", "Engineering_Portal_Projects_Config_" + new Date().toISOString().slice(0, 10) + ".json");
+        a.click();
+    }
+
+    function importConfig(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                // 基礎結構防呆檢查
+                if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
+                saveProjectData(parsed);
+                initUI();
+                alert("📂 專案配置庫匯入並更新成功！");
+            } catch (err) {
+                alert("❌ 檔案結構解析失敗，請確保上傳的是正確的專案 JSON 檔案。");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function resetToDefault() {
+        if (!confirm("⚠️ 確定要重置為系統出廠值嗎？所有您的客製化修改將會消失！")) return;
+        saveProjectData(DEFAULT_CUSTOMER_MODELS);
+        initUI();
+    }
+</script>
+</body>
+</html>

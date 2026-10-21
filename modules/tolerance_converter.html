@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公差換算小工具 - Taigene</title>
+    <style>
+        :root {
+            --bg: #f3f6fb;
+            --card: #fff;
+            --line: #cbd5e1;
+            --text: #1e293b;
+            --primary: #1769aa;
+            --accent: #2563eb;
+            --hover: #f8fafc;
+            --shadow: 0 4px 12px rgba(28, 53, 87, 0.06);
+            --danger: #dc2626;
+            --success: #16a34a;
+        }
+
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { margin: 0; padding: 20px; background-color: var(--bg); color: var(--text); font-size: 13px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        h1 { font-size: 1.4rem; color: var(--primary); margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid var(--line); padding-bottom: 10px; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px; box-shadow: var(--shadow); }
+        .card h2 { margin-top: 0; margin-bottom: 15px; font-size: 1.05rem; color: var(--primary); border-bottom: 1px solid #edf2f7; padding-bottom: 6px; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #475569; font-size: 12px; }
+        .form-control { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 5px; font-size: 13px; }
+        .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(23, 105, 170, 0.12); }
+        
+        .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+        button { cursor: pointer; padding: 6px 12px; border: 1px solid transparent; border-radius: 5px; font-size: 12px; font-weight: bold; transition: all 0.2s; }
+        .btn-outline { background: #fff; border-color: var(--line); color: var(--text); }
+        .btn-outline:hover { background: var(--hover); }
+        .btn-sm { padding: 4px 8px; font-size: 11px; }
+
+        .result-panel { background: #f8fafc; border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+        .result-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #edf2f7; }
+        .result-row:last-child { border-bottom: none; }
+        .result-label { font-weight: bold; color: #64748b; }
+        .result-value { font-size: 1.1rem; font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛠️ 公差與極限值雙向換算小工具</h1>
+
+    <div class="grid">
+        <!-- 左側：輸入與配置 -->
+        <div class="card">
+            <h2>📏 換算模式設定</h2>
+            <div class="form-group">
+                <label for="cboInputType">換算模式</label>
+                <select id="cboInputType" class="form-control" onchange="switchToleranceMode()">
+                    <option value="both">輸入 +/- 公差 ➔ 推算上下限</option>
+                    <option value="limit">輸入上下限值 ➔ 逆推公差</option>
+                </select>
+            </div>
+
+            <!-- 模式 A：輸入公差 -->
+            <div id="divModeBoth">
+                <div class="form-group">
+                    <label for="txtNominal">公稱值 (Nominal)</label>
+                    <input type="number" id="txtNominal" class="form-control" value="10" step="any" oninput="calculateTolerance()">
+                </div>
+                <div class="form-group">
+                    <label for="txtUpperTol">上公差 (+)</label>
+                    <input type="number" id="txtUpperTol" class="form-control" value="0.02" step="any" oninput="calculateTolerance()">
+                </div>
+                <div class="form-group">
+                    <label for="txtLowerTol">下公差 (-)</label>
+                    <input type="number" id="txtLowerTol" class="form-control" value="-0.01" step="any" oninput="calculateTolerance()">
+                </div>
+                <div class="btn-group">
+                    <button class="btn-outline" onclick="clearToleranceForm()">🔄 清空重置</button>
+                </div>
+            </div>
+
+            <!-- 模式 B：輸入上下限 -->
+            <div id="divModeLimit" class="hidden">
+                <div class="form-group">
+                    <label for="txtUpperLimit">上限值 (Upper Limit)</label>
+                    <input type="number" id="txtUpperLimit" class="form-control" placeholder="輸入最大尺寸..." step="any" oninput="calculateFromLimits()">
+                </div>
+                <div class="form-group">
+                    <label for="txtLowerLimit">下限值 (Lower Limit)</label>
+                    <input type="number" id="txtLowerLimit" class="form-control" placeholder="輸入最小尺寸..." step="any" oninput="calculateFromLimits()">
+                </div>
+                <div class="btn-group">
+                    <button class="btn-outline" onclick="clearLimitsForm()">🔄 清空重置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：互算結果展示 -->
+        <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+            <h2>📊 換算結果數據</h2>
+            
+            <!-- 模式 A 的輸出結果 -->
+            <div id="resPanelBoth" class="result-panel" style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:8px;">
+                <div class="result-row">
+                    <span class="result-label">上限值：</span>
+                    <span class="result-value">
+                        <span id="lblUpperLimit">10.0200</span>
+                        <button class="btn-outline btn-sm" onclick="copyText('lblUpperLimit')">複製</button>
+                    </span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">下限值：</span>
+                    <span class="result-value">
+                        <span id="lblLowerLimit">9.9900</span>
+                        <button class="btn-outline btn-sm" onclick="copyText('lblLowerLimit')">複製</button>
+                    </span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">中間值 (Mid-value)：</span>
+                    <span class="result-value">
+                        <span id="lblMidValue">10.0050</span>
+                        <button class="btn-outline btn-sm" onclick="copyText('lblMidValue')">複製</button>
+                    </span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">對稱公差形式：</span>
+                    <span class="result-value" style="color:#16794b;">
+                        <span id="lblSymmetricTol">±0.0150</span>
+                        <button class="btn-outline btn-sm" onclick="copySymmetricText('lblSymmetricTol')">複製數值</button>
+                    </span>
+                </div>
+            </div>
+
+            <!-- 模式 B 的輸出結果 -->
+            <div id="resPanelLimit" class="result-panel hidden" style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:8px;">
+                <div class="result-row">
+                    <span class="result-label">推算公稱值：</span>
+                    <span class="result-value">
+                        <span id="lblNominal">—</span>
+                        <button class="btn-outline btn-sm" onclick="copyText('lblNominal')">複製</button>
+                    </span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">推算對稱公差：</span>
+                    <span class="result-value" style="color:#16794b;">
+                        <span id="lblTolerance">—</span>
+                        <button class="btn-outline btn-sm" onclick="copySymmetricText('lblTolerance')">複製數值</button>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    'use strict';
+
+    function switchToleranceMode() {
+        const mode = document.getElementById('cboInputType').value;
+        if (mode === 'both') {
+            document.getElementById('divModeBoth').classList.remove('hidden');
+            document.getElementById('resPanelBoth').classList.remove('hidden');
+            document.getElementById('divModeLimit').classList.add('hidden');
+            document.getElementById('resPanelLimit').classList.add('hidden');
+            calculateTolerance();
+        } else {
+            document.getElementById('divModeBoth').classList.add('hidden');
+            document.getElementById('resPanelBoth').classList.add('hidden');
+            document.getElementById('divModeLimit').classList.remove('hidden');
+            document.getElementById('resPanelLimit').classList.remove('hidden');
+            calculateFromLimits();
+        }
+    }
+
+    function calculateTolerance() {
+        const nominal = parseFloat(document.getElementById('txtNominal').value) || 0;
+        const upperTol = parseFloat(document.getElementById('txtUpperTol').value) || 0;
+        const lowerTol = parseFloat(document.getElementById('txtLowerTol').value) || 0;
+
+        const upperLimit = nominal + upperTol;
+        const lowerLimit = nominal + lowerTol;
+        const midValue = (upperLimit + lowerLimit) / 2;
+        const symmetricTol = upperLimit - midValue;
+
+        document.getElementById('lblUpperLimit').textContent = upperLimit.toFixed(4);
+        document.getElementById('lblLowerLimit').textContent = lowerLimit.toFixed(4);
+        document.getElementById('lblMidValue').textContent = midValue.toFixed(4);
+        document.getElementById('lblSymmetricTol').textContent = "±" + Math.abs(symmetricTol).toFixed(4);
+    }
+
+    function calculateFromLimits() {
+        const upperLimit = parseFloat(document.getElementById('txtUpperLimit').value) || 0;
+        const lowerLimit = parseFloat(document.getElementById('txtLowerLimit').value) || 0;
+
+        const nominal = (upperLimit + lowerLimit) / 2;
+        const tolerance = upperLimit - nominal;
+
+        document.getElementById('lblNominal').textContent = nominal.toFixed(4);
+        document.getElementById('lblTolerance').textContent = "±" + Math.abs(tolerance).toFixed(4);
+    }
+
+    function clearToleranceForm() {
+        document.getElementById('txtNominal').value = '';
+        document.getElementById('txtUpperTol').value = '';
+        document.getElementById('txtLowerTol').value = '';
+        calculateTolerance();
+    }
+
+    function clearLimitsForm() {
+        document.getElementById('txtUpperLimit').value = '';
+        document.getElementById('txtLowerLimit').value = '';
+        document.getElementById('lblNominal').textContent = '—';
+        document.getElementById('lblTolerance').textContent = '—';
+    }
+
+    function copyText(elementId) {
+        const text = document.getElementById(elementId).textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("📋 已複製數值：" + text);
+        });
+    }
+
+    function copySymmetricText(elementId) {
+        const text = document.getElementById(elementId).textContent;
+        const valOnly = text.replace("±", "");
+        navigator.clipboard.writeText(valOnly).then(() => {
+            alert("📋 已複製對稱公差數值：" + valOnly);
+        });
+    }
+
+    window.onload = () => {
+        calculateTolerance();
+    }
+</script>
+</body>
+</html>

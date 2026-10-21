@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轉速與扭矩動力學計算 - Taigene</title>
+    <style>
+        :root {
+            --bg: #f3f6fb;
+            --card: #fff;
+            --line: #cbd5e1;
+            --text: #1e293b;
+            --primary: #1769aa;
+            --accent: #2563eb;
+            --hover: #f8fafc;
+            --shadow: 0 4px 12px rgba(28, 53, 87, 0.06);
+            --danger: #dc2626;
+            --success: #16a34a;
+        }
+
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { margin: 0; padding: 20px; background-color: var(--bg); color: var(--text); font-size: 13px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        h1 { font-size: 1.4rem; color: var(--primary); margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid var(--line); padding-bottom: 10px; }
+
+        .grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 20px; box-shadow: var(--shadow); }
+        .card h2 { margin-top: 0; margin-bottom: 18px; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #edf2f7; padding-bottom: 8px; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 6px; color: #475569; font-size: 12px; }
+        .input-combo { display: flex; gap: 8px; }
+        .form-control { flex: 1; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; }
+        .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(23, 105, 170, 0.12); }
+        select.form-control { max-width: 120px; background-color: #f8fafc; }
+        
+        .btn-group { display: flex; gap: 8px; margin-top: 15px; }
+        button { cursor: pointer; padding: 8px 16px; border: 1px solid transparent; border-radius: 6px; font-size: 12px; font-weight: bold; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #115293; }
+        .btn-outline { background: #fff; border-color: var(--line); color: var(--text); }
+        .btn-outline:hover { background: var(--hover); }
+
+        .result-panel { background: #f8fafc; border: 1px solid var(--line); border-radius: 6px; padding: 18px; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+        .result-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #edf2f7; }
+        .result-row:last-child { border-bottom: none; }
+        .result-label { font-weight: bold; color: #64748b; font-size: 13px; }
+        .result-value { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⚡ 轉速、時間與轉動慣量計算扭力 (Dynamics &amp; Torque)</h1>
+
+    <div class="grid">
+        <!-- 參數輸入卡片 -->
+        <div class="card">
+            <h2>📥 設計參數輸入</h2>
+            
+            <div class="form-group">
+                <label>初轉速 (Initial Speed)</label>
+                <div class="input-combo">
+                    <input type="number" id="txtInitialSpeed" class="form-control" value="0" step="any" oninput="updateCalculation()">
+                    <select id="cboInitialUnit" class="form-control" onchange="updateCalculation()">
+                        <option value="rpm">rpm</option>
+                        <option value="r/s">r/s</option>
+                        <option value="rad/min">rad/min</option>
+                        <option value="rad/s">rad/s</option>
+                        <option value="°/min">°/min</option>
+                        <option value="°/s">°/s</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>末轉速 (Final Speed)</label>
+                <div class="input-combo">
+                    <input type="number" id="txtFinalSpeed" class="form-control" value="3000" step="any" oninput="updateCalculation()">
+                    <select id="cboFinalUnit" class="form-control" onchange="updateCalculation()">
+                        <option value="rpm">rpm</option>
+                        <option value="r/s">r/s</option>
+                        <option value="rad/min">rad/min</option>
+                        <option value="rad/s">rad/s</option>
+                        <option value="°/min">°/min</option>
+                        <option value="°/s">°/s</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>加速時間 (Acceleration Time)</label>
+                <div class="input-combo">
+                    <input type="number" id="txtTime" class="form-control" value="1" step="any" oninput="updateCalculation()">
+                    <select id="cboTimeUnit" class="form-control" onchange="updateCalculation()">
+                        <option value="s">s</option>
+                        <option value="ms" selected>ms</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>轉動慣量 (Rotational Inertia)</label>
+                <div class="input-combo">
+                    <input type="number" id="txtInertia" class="form-control" value="1.249" step="any" oninput="updateCalculation()">
+                    <select id="cboInertiaUnit" class="form-control" onchange="updateCalculation()">
+                        <option value="kg-m2">kg·m²</option>
+                        <option value="kg-cm2" selected>kg·cm²</option>
+                        <option value="kg-mm2">kg·mm²</option>
+                        <option value="g-m2">g·m²</option>
+                        <option value="g-cm2">g·cm²</option>
+                        <option value="g-mm2">g·mm²</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="txtSafety">安全係數 (Safety Factor)</label>
+                <input type="number" id="txtSafety" class="form-control" value="1.5" step="0.1" oninput="updateCalculation()">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-primary" onclick="updateCalculation()">🚀 動態計算</button>
+                <button class="btn-outline" onclick="clearForm()">🔄 重置預設</button>
+            </div>
+        </div>
+
+        <!-- 運算結果面板 -->
+        <div class="card" style="display:flex; flex-direction:column;">
+            <h2>📊 動力學計算結果</h2>
+            <div class="result-panel">
+                <div class="result-row">
+                    <span class="result-label">角加速度 (α)：</span>
+                    <span class="result-value" id="lblAngularAccelValue">0.0000 rad/s²</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">理論需求扭力 (T)：</span>
+                    <span class="result-value" id="lblTorqueValue" style="color:var(--primary);">0.0000 Nm</span>
+                </div>
+                <div class="result-row" style="border-top: 2px dashed var(--line); padding-top: 15px; margin-top: 10px;">
+                    <span class="result-label" style="font-size:14px;">安全扭力需求 (含 SF)：</span>
+                    <span class="result-value" id="lblTorqueWithSFValue" style="color:var(--success); font-size:1.35rem;">0.0000 Nm</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    'use strict';
+
+    function updateCalculation() {
+        const initVal = parseFloat(document.getElementById('txtInitialSpeed').value);
+        const finalVal = parseFloat(document.getElementById('txtFinalSpeed').value);
+        const timeVal = parseFloat(document.getElementById('txtTime').value);
+        const inertiaVal = parseFloat(document.getElementById('txtInertia').value);
+        const safety = parseFloat(document.getElementById('txtSafety').value);
+
+        if (isNaN(initVal) || isNaN(finalVal) || isNaN(timeVal) || isNaN(inertiaVal) || isNaN(safety)) return;
+
+        const initUnit = document.getElementById('cboInitialUnit').value;
+        const finalUnit = document.getElementById('cboFinalUnit').value;
+        const timeUnit = document.getElementById('cboTimeUnit').value;
+        const inertiaUnit = document.getElementById('cboInertiaUnit').value;
+
+        // 單位換算為 rad/s 及 秒 (s)
+        const initRadSec = convertSpeedToRadPerSec(initVal, initUnit);
+        const finalRadSec = convertSpeedToRadPerSec(finalVal, finalUnit);
+        const timeSec = convertTimeToSec(timeVal, timeUnit);
+
+        if (timeSec <= 0) {
+            document.getElementById('lblAngularAccelValue').textContent = "時間必須大於零";
+            return;
+        }
+
+        // 角加速度 = (ω2 - ω1) / t  (rad/s²)
+        const deltaOmega = finalRadSec - initRadSec;
+        const angularAccel = deltaOmega / timeSec;
+
+        document.getElementById('lblAngularAccelValue').textContent = angularAccel.toFixed(4) + " rad/s²";
+
+        // 慣性矩換算為 kg-m²
+        const inertiaKgM2 = convertInertiaToKgM2(inertiaVal, inertiaUnit);
+
+        // T = I * α  (Nm)
+        const torque = inertiaKgM2 * angularAccel;
+        const torqueWithSF = torque * safety;
+
+        document.getElementById('lblTorqueValue').textContent = torque.toFixed(4) + " Nm";
+        document.getElementById('lblTorqueWithSFValue').textContent = torqueWithSF.toFixed(4) + " Nm";
+    }
+
+    function convertSpeedToRadPerSec(value, unit) {
+        switch (unit) {
+            case "rpm":     return value * 2 * Math.PI / 60;
+            case "r/s":     return value * 2 * Math.PI;
+            case "rad/min": return value / 60;
+            case "rad/s":   return value;
+            case "°/min":   return value * (Math.PI / 180) / 60;
+            case "°/s":     return value * (Math.PI / 180);
+            default:        return value;
+        }
+    }
+
+    function convertTimeToSec(value, unit) {
+        return unit === "ms" ? (value / 1000) : value;
+    }
+
+    function convertInertiaToKgM2(value, unit) {
+        switch (unit) {
+            case "kg-m2":  return value;
+            case "kg-cm2": return value / 10000;
+            case "kg-mm2": return value / 1000000;
+            case "g-m2":   return value / 1000;
+            case "g-cm2":  return value / 10000000;
+            case "g-mm2":  return value / 1000000000;
+            default:        return value;
+        }
+    }
+
+    function clearForm() {
+        document.getElementById('txtInitialSpeed').value = "0";
+        document.getElementById('txtFinalSpeed').value = "3000";
+        document.getElementById('txtTime').value = "1";
+        document.getElementById('txtInertia').value = "1.249";
+        document.getElementById('txtSafety').value = "1.5";
+
+        document.getElementById('cboInitialUnit').value = "rpm";
+        document.getElementById('cboFinalUnit').value = "rpm";
+        document.getElementById('cboTimeUnit').value = "ms";
+        document.getElementById('cboInertiaUnit').value = "kg-cm2";
+
+        updateCalculation();
+    }
+
+    window.onload = () => {
+        updateCalculation();
+    }
+</script>
+</body>
+</html>

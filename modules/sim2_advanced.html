@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../css/portal-style.css">
+  <!-- 1. 引入共用客戶資料庫腳本 -->
+  <script src="../assets/js/project_db.js"></script>
+  <!-- 共用工程單位轉換核心；此頁位於 modules/，共用 JS 位於 assets/js/ -->
+  <script src="../assets/js/unit_converter.js"></script>
+<style>
+.sim2-visual-wrap { width: 100%; overflow-x: auto; }
+#sim2DimensionSvg { display: block; width: 100%; min-width: 560px; height: auto; max-height: 430px; }
+.sim2-visual-note { font-size: 12px; color: #64748b; line-height: 1.6; margin-top: 8px; }
+@media (max-width: 700px) { #sim2DimensionSvg { min-width: 600px; } }
+</style>
+</head>
+<body>
+
+  <div class="btn-toolbar">
+    <button class="action-btn" id="btnSaveRecordSim2" onclick="handleSaveRecordSim2()">💾 儲存紀錄</button>
+    <button class="action-btn btn-secondary" onclick="handleEditRecordSim2()">✏️ 載入選定紀錄</button>
+    <button class="action-btn btn-secondary" onclick="startNewRecordSim2()">➕ 另存為新件</button>
+    <button class="action-btn btn-secondary" onclick="exportRecordsSim2()">匯出紀錄</button>
+    <button class="action-btn btn-secondary" onclick="document.getElementById('importRecordsSim2File').click()">匯入紀錄</button>
+    <input id="importRecordsSim2File" type="file" accept=".json,application/json" style="display:none" onchange="importRecordsSim2(event)">
+    <button class="action-btn btn-danger" onclick="handleDeleteRecordSim2()">🗑️ 刪除選定紀錄</button>
+    <button class="action-btn btn-secondary" onclick="resetFormSim2()">🔄 清空重置</button>
+  </div>
+
+<!-- 💡 軸與孔剖面示意圖（依輸入尺寸即時更新） -->
+<div class="card" style="margin-bottom:10px;">
+  <div class="card-title">📐 軸與孔剖面示意圖（依輸入尺寸即時更新）</div>
+  <div class="sim2-visual-wrap">
+    <svg id="sim2DimensionSvg" viewBox="0 0 760 330" role="img" aria-label="外體與內體側視剖面干涉配合示意圖">
+      <defs>
+        <pattern id="sim2ShaftPattern" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,8 L8,0" stroke="#475569" stroke-width="1" opacity=".35"/></pattern>
+        <pattern id="sim2HolePattern" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,0 L8,8" stroke="#0284c7" stroke-width="1" opacity=".32"/></pattern>
+        <marker id="sim2Arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto-start-reverse"><path d="M0,0 L7,3.5 L0,7 z" fill="#334155"/></marker>
+        
+        <!-- 軸穿孔遮罩 -->
+        <mask id="sim2ShaftMask">
+          <rect x="0" y="0" width="800" height="400" fill="white" />
+          <!-- 黑色矩形代表挖空 (尺寸由 JS 動態更新) -->
+          <rect id="sim2ShaftHoleMask" x="55" y="105" width="490" height="0" fill="black" />
+        </mask>
+      </defs>
+      <rect x="1" y="1" width="758" height="328" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="20" y="25" font-size="14" font-weight="700" fill="#0f172a">外體與內體側視剖面（軸向配合示意）</text>
+      <line x1="70" y1="165" x2="540" y2="165" stroke="#94a3b8" stroke-dasharray="6 4"/>
+      
+      <!-- 外體 (孔) 剖面材料 -->
+      <rect id="sim2HousingTop" x="85" y="58" width="430" height="50" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+      <rect id="sim2HousingTopHatch" x="85" y="58" width="430" height="50" fill="url(#sim2HolePattern)"/>
+      <rect id="sim2HousingBottom" x="85" y="222" width="430" height="50" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+      <rect id="sim2HousingBottomHatch" x="85" y="222" width="430" height="50" fill="url(#sim2HolePattern)"/>
+      
+      <!-- 內體 (軸) 本體 (套用遮罩穿孔) -->
+      <rect id="sim2ShaftBody" x="55" y="105" width="490" height="120" rx="5" fill="#cbd5e1" stroke="#475569" stroke-width="2" mask="url(#sim2ShaftMask)"/>
+      <rect id="sim2ShaftHatch" x="55" y="105" width="490" height="120" rx="5" fill="url(#sim2ShaftPattern)" mask="url(#sim2ShaftMask)"/>
+      
+      <!-- 過盈區：內體超出外體內徑的部分 -->
+      <rect id="sim2InterferenceTop" x="85" y="105" width="430" height="0" fill="#ef4444" opacity=".82"/>
+      <rect id="sim2InterferenceBottom" x="85" y="225" width="430" height="0" fill="#ef4444" opacity=".82"/>
+      
+      <line x1="85" y1="58" x2="85" y2="272" stroke="#0284c7" stroke-width="1.5"/>
+      <line x1="515" y1="58" x2="515" y2="272" stroke="#0284c7" stroke-width="1.5"/>
+      
+      <!-- 尺寸線與標籤 -->
+      <!-- 左側：內體內徑 (di) 尺寸線與標籤 -->
+      <line id="sim2DimShaftID" x1="40" y1="165" x2="40" y2="165" stroke="#b45309" stroke-width="1.6" marker-start="url(#sim2Arrow)" marker-end="url(#sim2Arrow)"/>
+      <text id="sim2LabelShaftID" x="35" y="165" font-size="12" font-weight="700" fill="#b45309" text-anchor="end" dominant-baseline="middle">內體 di 77.0000 mm</text>
+
+      <!-- 右側：內體外徑 (do) 與外體內徑 (Di) 尺寸線，完美錯開 -->
+      <line id="sim2DimShaftOD" x1="530" y1="105" x2="530" y2="225" stroke="#047857" stroke-width="1.6" marker-start="url(#sim2Arrow)" marker-end="url(#sim2Arrow)"/>
+      <text id="sim2LabelShaftOD" x="540" y="115" font-size="12" font-weight="700" fill="#047857">內體 do 85.0000 mm</text>
+      
+      <line id="sim2DimHoleID" x1="585" y1="108" x2="585" y2="222" stroke="#0284c7" stroke-width="1.6" marker-start="url(#sim2Arrow)" marker-end="url(#sim2Arrow)"/>
+      <text id="sim2LabelHoleID" x="595" y="185" font-size="12" font-weight="700" fill="#0369a1">外體 Di 84.8500 mm</text>
+      
+      <!-- 左上方：外體外徑標示，安全分流避撞 -->
+      <text x="20" y="48" font-size="12" font-weight="700" fill="#0369a1">外體／孔（藍色剖面線）</text>
+      <text id="sim2ValueHoleOD" x="185" y="48" font-size="12" font-weight="700" fill="#0284c7">外體外徑 Do：91.0000 mm</text>
+
+      <!-- 下方規格數值即時看板 -->
+      <text x="85" y="294" font-size="12" font-weight="700" fill="#475569">內體／軸（灰色）</text>
+      <text id="sim2ValueShaftOD" x="20" y="312" font-size="12" fill="#334155">內體外徑 do：85.0000 mm</text>
+      <text id="sim2ValueShaftID" x="200" y="312" font-size="12" fill="#334155">內體內徑 di：77.0000 mm</text>
+      <text id="sim2ValueHoleID" x="380" y="312" font-size="12" fill="#0369a1">外體內徑 Di：84.8500 mm</text>
+      <text id="sim2ValueL" x="560" y="312" font-size="12" font-weight="700" fill="#2563eb">配合長度 L：22.5000 mm</text>
+      
+      <text id="sim2ValueIntMax" x="610" y="45" font-size="12" font-weight="700" fill="#b91c1c">最大：0.1900 mm</text>
+      <text id="sim2ValueIntMin" x="610" y="62" font-size="12" font-weight="700" fill="#0369a1">最小：0.1300 mm</text>
+      <text id="sim2FitStatus" x="610" y="80" font-size="11" font-weight="700" fill="#334155">配合狀態：計算中</text>
+    </svg>
+  </div>
+  <div class="sim2-visual-note">注意：側視剖面示意圖。紅色區域表示內體外徑超出外體內徑的幾何干涉（過盈）；圖形具自適應比例縮放，實際精確干涉數值請依下方計算結果表為準。</div>
+</div>
+
+  <div class="main-grid">
+    <!-- 外體 (孔) 參數 -->
+    <div class="card">
+      <div class="card-title">🔩 外體 (Outer Body/孔) 設定</div>
+      <div class="form-group">
+        <label>材料性質</label>
+        <select id="cmb_ob_MatType" onchange="onMaterialDropdownChange('sim2_hole', true)"></select>
+      </div>
+      <div class="form-group">
+        <label>材料名稱</label>
+        <select id="cmb_ob_MatName" onchange="applySelectedMaterialProperties('sim2_hole')"></select>
+      </div>
+      <div class="form-group">
+        <label>外體外徑 (Do)</label>
+        <div class="input-box">
+          <input type="number" id="txt_obod" value="91.0000" step="0.1" oninput="calcSim2()">
+          <select id="cbo_unit_obod" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>外體內徑 (Di)</label>
+        <div class="input-box">
+          <input type="number" id="txt_obid" value="84.8500" step="0.01" oninput="calcSim2()">
+          <select id="cbo_unit_obid" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>外體上限公差</label>
+        <div class="input-box">
+          <input type="number" id="txt_obptol" value="0.0100" step="0.005" oninput="calcSim2()">
+          <select id="cbo_unit_obptol" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>外體下限公差</label>
+        <div class="input-box">
+          <input type="number" id="txt_obmtol" value="0.0100" step="0.005" oninput="calcSim2()">
+          <select id="cbo_unit_obmtol" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>彈性模數 (Eo)</label>
+        <div class="input-box">
+          <input type="number" id="txt_obe" value="73750" oninput="calcSim2()">
+          <select id="cbo_unit_obe" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>屈服強度 (Syo)</label>
+        <div class="input-box">
+          <input type="number" id="txt_obsy" value="165" oninput="calcSim2()">
+          <select id="cbo_unit_obsy" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>蒲松比 (vo)</label>
+        <div class="input-box"><input type="number" id="txt_obn" value="0.30" step="0.01" oninput="calcSim2()"></div>
+      </div>
+      <div class="form-group">
+        <label>熱膨脹係數 (αo)</label>
+        <div class="input-box">
+          <input type="number" id="txt_obcte" value="0.0000117" step="1e-7" oninput="calcSim2()">
+          <select id="cbo_unit_obcte" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>密度 (ρo)</label>
+        <div class="input-box">
+          <input type="number" id="txt_obrho" value="2.7" step="0.1" oninput="calcSim2()">
+          <select id="cbo_unit_obrho" class="unit-sel" onchange="changeDensityUnit('txt_obrho','cbo_unit_obrho')"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>外體應力集中(Kt)</label>
+        <div class="input-box"><input type="number" id="txt_obscf" value="1.2" step="0.1" oninput="calcSim2()"></div>
+      </div>
+    </div>
+    <!-- 內體 (軸) -->
+    <div class="card">
+      <div class="card-title">🔩 內體 (Inner Body/軸) 設定</div>
+      <div class="form-group">
+        <label>材料性質</label>
+        <select id="cmb_ib_MatType" onchange="onMaterialDropdownChange('sim2', true)"></select>
+      </div>
+      <div class="form-group">
+        <label>材料名稱</label>
+        <select id="cmb_ib_MatName" onchange="applySelectedMaterialProperties('sim2')"></select>
+      </div>
+      <div class="form-group">
+        <label>配合長度 (L)</label>
+        <div class="input-box">
+          <input type="number" id="txt_L" value="22.5000" step="0.5" oninput="calcSim2()">
+          <select id="cbo_unit_L" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>內體外徑 (do)</label>
+        <div class="input-box">
+          <input type="number" id="txt_ibod" value="85.0000" step="0.01" oninput="calcSim2()">
+          <select id="cbo_unit_ibod" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>內體內徑 (di)</label>
+        <div class="input-box">
+          <input type="number" id="txt_ibid" value="77.0000" step="0.1" oninput="calcSim2()">
+          <select id="cbo_unit_ibid" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>內體上限公差</label>
+        <div class="input-box">
+          <input type="number" id="txt_ibptol" value="0.0300" step="0.005" oninput="calcSim2()">
+          <select id="cbo_unit_ibptol" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>內體下限公差</label>
+        <div class="input-box">
+          <input type="number" id="txt_ibmtol" value="0.0300" step="0.005" oninput="calcSim2()">
+          <select id="cbo_unit_ibmtol" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>彈性模數 (Ei)</label>
+        <div class="input-box">
+          <input type="number" id="txt_ibe" value="210000" oninput="calcSim2()">
+          <select id="cbo_unit_ibe" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>屈服強度 (Syi)</label>
+        <div class="input-box">
+          <input type="number" id="txt_ibsy" value="240" oninput="calcSim2()">
+          <select id="cbo_unit_ibsy" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>蒲松比 (vi)</label>
+        <div class="input-box"><input type="number" id="txt_ibn" value="0.30" step="0.01" oninput="calcSim2()"></div>
+      </div>
+      <div class="form-group">
+        <label>熱膨脹係數 (αi)</label>
+        <div class="input-box">
+          <input type="number" id="txt_ibcte" value="0.0000117" step="1e-7" oninput="calcSim2()">
+          <select id="cbo_unit_ibcte" class="unit-sel" onchange="calcSim2()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>密度 (ρi)</label>
+        <div class="input-box">
+          <input type="number" id="txt_ibrho" value="7.85" step="0.1" oninput="calcSim2()">
+          <select id="cbo_unit_ibrho" class="unit-sel" onchange="changeDensityUnit('txt_ibrho','cbo_unit_ibrho')"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>內體應力集中(Kt)</label>
+        <div class="input-box"><input type="number" id="txt_ibscf" value="1.2" step="0.1" oninput="calcSim2()"></div>
+      </div>
+    </div>
+    <!-- 輸出與 MS 分析 -->
+    <div class="card">
+      <div class="card-title">📊 邊界負載、工作環境與過盈計算結果</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+        <div class="form-group">
+          <label style="width:70px;">客戶名稱</label>
+          <select id="cboCustomerSim2" onchange="onCustomerChangeSim2()"></select>
+        </div>
+        <div class="form-group">
+          <label style="width:70px;">機種名稱</label>
+          <select id="cboModelSim2"></select>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+        <div class="form-group">
+          <label style="width:70px;">傳遞扭矩</label>
+          <div class="input-box">
+            <input type="number" id="txt_torque" value="21" oninput="calcSim2()">
+            <select id="cbo_unit_torque" class="unit-sel" onchange="calcSim2()"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="width:70px;">軸向拔力</label>
+          <div class="input-box">
+            <input type="number" id="txt_force" value="1000" oninput="calcSim2()">
+            <select id="cbo_unit_force" class="unit-sel" onchange="calcSim2()"></select>
+          </div>
+        </div>
+      </div>
+      
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+        <div class="form-group">
+          <label style="width:70px;">摩擦係數 (μ)</label>
+          <div class="input-box"><input type="number" id="txt_mu" value="0.15" step="0.01" oninput="calcSim2()"></div>
+        </div>
+        <div class="form-group">
+          <label style="width:70px;">環境溫差</label>
+          <div class="input-box">
+            <input type="number" id="txt_ot" value="20" oninput="calcSim2()">
+            <select id="cbo_unit_ot" class="unit-sel" onchange="calcSim2()"></select>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+        <div class="form-group">
+          <label style="width:70px;">工作轉速</label>
+          <div class="input-box">
+            <input type="number" id="txt_rpm" value="0" oninput="calcSim2()">
+            <select id="cbo_unit_rpm" class="unit-sel" onchange="calcSim2()"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="width:70px;">配合間隙(g)</label>
+          <div class="input-box">
+            <input type="number" id="txt_ddt" value="0" step="0.01" oninput="calcSim2()">
+            <select id="cbo_unit_ddt" class="unit-sel" onchange="calcSim2()"></select>
+          </div>
+        </div>
+      </div>
+      <div class="form-group" style="align-items:flex-start;">
+        <label style="width:70px; margin-top:4px;">專案說明</label>
+        <textarea id="txtProjectNoteSim2" placeholder="輸入設計說明..."></textarea>
+      </div>
+      <table class="res-table">
+        <tr><th>項目</th><th>Max</th><th>Min</th><th>Avg / 單位</th></tr>
+        <tr>
+          <td>干涉配合量</td><td id="lbl_maxdelta">0.0000</td><td id="lbl_mindelta">0.0000</td>
+          <td><select id="cbo_unit_delta" class="unit-sel-inline" onchange="calcSim2()"><option value="mm">mm</option><option value="in">in</option></select></td>
+        </tr>
+        <tr>
+          <td>結合面壓力</td><td id="lbl_maxip">0.0000</td><td id="lbl_minip">0.0000</td>
+          <td><select id="cbo_unit_ip" class="unit-sel-inline" onchange="calcSim2()"><option value="MPa">MPa</option><option value="psi">psi</option></select></td>
+        </tr>
+        <tr>
+          <td>拔入力需求</td><td id="lbl_Fpfmax">0.00</td><td id="lbl_Fpfmin">0.00</td>
+          <td><select id="cbo_unit_Fpf" class="unit-sel-inline" onchange="calcSim2()"><option value="N">N</option><option value="kg">kg</option></select></td>
+        </tr>
+        <tr>
+          <td>可傳遞扭矩</td><td id="lbl_maxt">0.00</td><td id="lbl_mint">0.00</td>
+          <td><select id="cbo_unit_t" class="unit-sel-inline" onchange="calcSim2()"><option value="N-mm">N-mm</option><option value="N-m">N-m</option></select></td>
+        </tr>
+        <tr>
+          <td>屈服極限壓力</td><td id="lbl_Pimax">0.00 MPa</td><td id="lbl_yieldt">0.00 N-m</td><td id="lbl_rPI">限: 0.00 MPa</td>
+        </tr>
+        <tr><td>外體引起屈服面壓力（Pobmax）</td><td id="lbl_Pibmax">0.00 MPa</td><td>內體引起屈服面壓力（Pibmax）</td><td id="lbl_Pobmax">0.00 MPa</td></tr>
+      </table>
+      <!-- 拉梅應力 -->
+      <div style="font-weight:bold; margin-top:8px; font-size:12px; color:#1e3a8a;">高階拉梅多向應力分佈與屈服評估</div>
+      <table class="res-table">
+        <tr>
+          <th style="width:105px;">位置 (徑向)</th><th>徑向應力</th><th>環向應力</th><th>等效應力</th><th>安全評估(80%)</th>
+        </tr>
+        <tr>
+          <td>外體內徑</td><td id="lbl_obsr">0.0 MPa</td><td id="lbl_obsc">0.0 MPa</td><td id="lbl_obvm" style="font-weight:bold;">0.0 MPa</td><td id="status_obvm" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>外體外徑</td><td id="lbl_obsr_od">0.0 MPa</td><td id="lbl_obsc_od">0.0 MPa</td><td id="lbl_obvm_od">0.0 MPa</td><td id="status_obvm_od" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>內體外徑</td><td id="lbl_ibsr">0.0 MPa</td><td id="lbl_ibsc">0.0 MPa</td><td id="lbl_ibvm" style="font-weight:bold;">0.0 MPa</td><td id="status_ibvm" style="text-align:center;">-</td>
+        </tr>
+        <tr>
+          <td>內體內徑</td><td id="lbl_ibsr_id">0.0 MPa</td><td id="lbl_ibsc_id">0.0 MPa</td><td id="lbl_ibvm_id">0.0 MPa</td><td id="status_ibvm_id" style="text-align:center;">-</td>
+        </tr>
+      </table>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:6px;">
+        <div style="padding:4px 8px; border-radius:4px; text-align:center;" id="card_msmp">壓力安全裕度: <span id="lbl_msmp" style="font-weight:bold;">0.00</span></div>
+        <div style="padding:4px 8px; border-radius:4px; text-align:center;" id="card_msmt">扭矩安全裕度: <span id="lbl_msmt" style="font-weight:bold;">0.00</span></div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:4px;">
+        <div style="padding:4px 8px; border-radius:4px; text-align:center;" id="card_obsf">外體安全係數: <span id="lbl_obsf" style="font-weight:bold;">0.00</span></div>
+        <div style="padding:4px 8px; border-radius:4px; text-align:center;" id="card_ibsf">內體安全係數: <span id="lbl_ibsf" style="font-weight:bold;">0.00</span></div>
+      </div>
+      <div style="font-weight:bold; margin-top:10px; color:#1e3a8a;">補償量、熱裝／冷裝與尺寸變化</div>
+      <table class="res-table">
+        <tr><th>結果項目</th><th>數值</th><th>單位／說明</th></tr>
+        <tr><td>軸向力補償量 (ddp)</td><td id="lbl_ddp">0.0000</td><td>mm</td></tr>
+        <tr><td>熱膨脹補償量 (ted)</td><td id="lbl_ted">0.0000</td><td>mm</td></tr>
+        <tr><td>外體旋轉補償量 (robd)</td><td id="lbl_robd">0.0000</td><td>mm</td></tr>
+        <tr><td>內體旋轉補償量 (ribd)</td><td id="lbl_ribd">0.0000</td><td>mm</td></tr>
+        <tr><td>總補償量 (addi)</td><td id="lbl_addi">0.0000</td><td>mm</td></tr>
+        <tr><td>外體加熱溫差需求</td><td id="lbl_robdt">0.0</td><td>°C 溫差</td></tr>
+        <tr><td>內體冷卻溫差需求</td><td id="lbl_ribdt">0.0</td><td>°C 溫差</td></tr>
+        <tr><td>內體補償後外徑</td><td id="lbl_ibod_addi">0.0000</td><td>mm</td></tr>
+      </table>
+      <div style="font-weight:bold; margin-top:10px; color:#1e3a8a;">完整應力分量與徑向位移（基準位置）</div>
+      <table class="res-table">
+        <tr><th>本體／位置</th><th>徑向位移 (mm)</th><th>軸向應力 (MPa)</th><th>剪應力 (MPa)</th><th>離心徑向應力 (MPa)</th><th>離心環向應力 (MPa)</th></tr>
+        <tr><td>外體內徑</td><td id="lbl_ob_disp">0.0000</td><td id="lbl_obsz">0.000</td><td id="lbl_obtau">0.000</td><td id="lbl_obrc">0.000</td><td id="lbl_obcc">0.000</td></tr>
+        <tr><td>內體外徑</td><td id="lbl_ib_disp">0.0000</td><td id="lbl_ibsz">0.000</td><td id="lbl_ibtau">0.000</td><td id="lbl_ibrc">0.000</td><td id="lbl_ibcc">0.000</td></tr>
+      </table>
+      <div id="lbl_Result16" style="white-space:pre-line; margin-top:8px; padding:8px; border-radius:4px; background:#f8fafc;">設計風險檢查：計算中</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:10px;">
+    <div class="card-title">📁 Design List (本機歷史紀錄庫 - 仿真 2)</div>
+    <div class="db-section">
+      <table class="db-table" id="dbTableSim2">
+        <thead>
+          <tr>
+            <th>項目</th><th>客戶</th><th>機種</th><th>說明</th><th>最大干涉</th><th>最小干涉</th><th>最大面壓</th><th>最大插入力</th><th>最大扭矩</th><th>外體等效</th><th>內體等效</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="dbTbodySim2"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+  let materialsCache = [];
+  let recordsCacheSim2 = [];
+  let selectedRecIndexSim2 = null;
+  let editingRecIndexSim2 = null;
+  let isRestoringRecordSim2 = false;
+
+  function loadLocalMaterials() {
+    const saved = localStorage.getItem('taigene_materials_db_v4');
+    materialsCache = saved ? JSON.parse(saved) : [];
+    populateAllMaterialDropdowns();
+  }
+
+  function populateAllMaterialDropdowns() {
+    const defaultTypes = ["鋼", "鋼板", "不鏽鋼", "矽鋼片", "鋁", "青銅", "黃銅"];
+    const types = new Set(defaultTypes);
+    
+    // 動態抓取所有已存在的材料性質，包含你新增的「粉末冶金」
+    materialsCache.forEach(item => { 
+      if (item.data && item.data[0]) types.add(item.data[0]); 
+    });
+
+    const fillSelect = (selId) => {
+      const el = document.getElementById(selId); if(!el) return;
+      const curr = el.value;
+      el.innerHTML = '<option value="自定義">自定義</option>';
+      Array.from(types).sort().forEach(t => { 
+        el.appendChild(new Option(t, t)); 
+      });
+      el.value = curr || "鋼";
+    };
+    fillSelect('cmb_ob_MatType');
+    fillSelect('cmb_ib_MatType');
+    onMaterialDropdownChange('sim2_hole', true);
+    onMaterialDropdownChange('sim2', true);
+  }
+
+function onMaterialDropdownChange(targetKey, isTypeChange) {
+    const isOuter = targetKey === 'sim2_hole';
+
+    const typeSel = document.getElementById(
+        isOuter ? 'cmb_ob_MatType' : 'cmb_ib_MatType'
+    );
+    const nameSel = document.getElementById(
+        isOuter ? 'cmb_ob_MatName' : 'cmb_ib_MatName'
+    );
+
+    const ymInput = document.getElementById(isOuter ? 'txt_obe' : 'txt_ibe');
+    const syInput = document.getElementById(isOuter ? 'txt_obsy' : 'txt_ibsy');
+    const prInput = document.getElementById(isOuter ? 'txt_obn' : 'txt_ibn');
+    const cteInput = document.getElementById(isOuter ? 'txt_obcte' : 'txt_ibcte');
+    const rhoInput = document.getElementById(isOuter ? 'txt_obrho' : 'txt_ibrho');
+
+    const propertyInputs = [ymInput, syInput, prInput, cteInput, rhoInput]
+        .filter(Boolean);
+
+    if (isTypeChange) {
+        const type = typeSel.value;
+
+        nameSel.innerHTML = '';
+
+        if (type === '自定義') {
+            // 自定義：材料名稱不可選擇，材料參數可自行輸入
+            nameSel.add(new Option('自定義材料', ''));
+            nameSel.value = '';
+            nameSel.disabled = true;
+
+            propertyInputs.forEach(input => {
+                input.readOnly = false;
+                input.classList.remove('input-locked');
+            });
+
+            if (!isRestoringRecordSim2) calcSim2();
+            return;
+        }
+
+        // 資料庫材料：材料名稱可選擇，材料參數不可修改
+        nameSel.disabled = false;
+        nameSel.add(new Option('請選擇規格名稱', ''));
+
+        const filtered = materialsCache.filter(m =>
+            Array.isArray(m.data) && m.data[0] === type
+        );
+
+        filtered.forEach(m => {
+            // 材料名稱使用 data[1]，不能直接把整個 data 陣列放入選單
+            nameSel.add(new Option(String(m.data[1] ?? ''), String(m.data[1] ?? '')));
+        });
+
+        if (filtered.length > 0) {
+            nameSel.selectedIndex = 1;
+        }
+    }
+
+    applySelectedMaterialProperties(targetKey);
+}
+
+// ==============================================================
+// 💡 升級：軸與孔剖面示意圖（依輸入尺寸即時更新，支援自適應與多單位）
+// ==============================================================
+function updateSim2Diagram() {
+  const getMM = (id, unitId) => {
+    const input = document.getElementById(id);
+    const unit = document.getElementById(unitId);
+    if (!input || !unit) return 0;
+    const value = parseFloat(input.value);
+    return Number.isFinite(value) ? parseLength(value, unit.value) : 0;
+  };
+
+  const Do = getMM('txt_obod', 'cbo_unit_obod');
+  const Di = getMM('txt_obid', 'cbo_unit_obid');
+  const doVal = getMM('txt_ibod', 'cbo_unit_ibod');
+  const diVal = getMM('txt_ibid', 'cbo_unit_ibid');
+  const LVal = getMM('txt_L', 'cbo_unit_L');
+
+  const obptol = getMM('txt_obptol', 'cbo_unit_obptol');
+  const obmtol = getMM('txt_obmtol', 'cbo_unit_obmtol');
+  const ibptol = getMM('txt_ibptol', 'cbo_unit_ibptol');
+  const ibmtol = getMM('txt_ibmtol', 'cbo_unit_ibmtol');
+
+  const maxInterference = (doVal + ibptol) - (Di - obmtol);
+  const minInterference = (doVal - ibmtol) - (Di + obptol);
+
+  const f = v => Number.isFinite(v) ? v.toFixed(4) : '—';
+  const txt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+
+  txt('sim2LabelShaftOD', `內體 do ${f(doVal)} mm`);
+  txt('sim2LabelHoleID', `外體 Di ${f(Di)} mm`);
+  txt('sim2LabelShaftID', `內體 di ${f(diVal)} mm`);
+  
+  txt('sim2ValueShaftOD', `內體外徑 do：${f(doVal)} mm`);
+  txt('sim2ValueShaftID', `內體內徑 di：${f(diVal)} mm`);
+  txt('sim2ValueHoleID', `外體內徑 Di：${f(Di)} mm`);
+  txt('sim2ValueHoleOD', `外體外徑 Do：${f(Do)} mm`);
+  txt('sim2ValueL', `配合長度 L：${f(LVal)} mm`);
+
+  txt('sim2ValueIntMax', `最大：${f(maxInterference)} mm`);
+  txt('sim2ValueIntMin', `最小：${f(minInterference)} mm`);
+  txt('sim2FitStatus', '配合狀態：' + (minInterference > 0 ? '全範圍皆為過盈配合' : maxInterference < 0 ? '全範圍皆為間隙配合' : '包含間隙與過盈配合'));
+
+  if (Do <= 0 || Di <= 0 || doVal <= 0) return;
+
+  const cy = 165;
+  const refD = Math.max(Do, Di, doVal, 1);
+  const autoScale = Math.min(25, Math.max(0.65, 95 / refD));
+
+  const shaftH = Math.max(20, doVal * autoScale);
+  const holeH = Math.max(18, Di * autoScale);
+  const shaftY = cy - shaftH / 2;
+  const holeTop = cy - holeH / 2;
+  const holeBottom = cy + holeH / 2;
+
+  const rawWall = Do > Di ? ((Do - Di) / 2) * autoScale : 22;
+  const wallH = Math.max(16, Math.min(42, rawWall));
+  const housingTopY = Math.max(38, holeTop - wallH);
+  const housingBottomY = holeBottom;
+  const housingBottomH = Math.min(42, Math.max(16, wallH));
+
+  const set = (id, attrs) => { const e = document.getElementById(id); if (e) Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, String(v))); };
+
+  set('sim2ShaftBody', { y: shaftY, height: shaftH });
+  set('sim2ShaftHatch', { y: shaftY, height: shaftH });
+
+  set('sim2HousingTop', { y: housingTopY, height: holeTop - housingTopY });
+  set('sim2HousingTopHatch', { y: housingTopY, height: holeTop - housingTopY });
+  set('sim2HousingBottom', { y: housingBottomY, height: housingBottomH });
+  set('sim2HousingBottomHatch', { y: housingBottomY, height: housingBottomH });
+
+  // 更新軸本體遮罩（挖出內徑孔洞）
+  const shaftIDH = Math.max(8, diVal * autoScale); 
+  const shaftIDTop = cy - shaftIDH / 2;
+  const shaftIDBottom = cy + shaftIDH / 2;
+  set('sim2ShaftHoleMask', { y: shaftIDTop, height: shaftIDH });
+
+  // 紅色過盈區提示
+  const isInterference = doVal > Di;
+  const rawOverlap = isInterference ? (shaftH - holeH) / 2 : 0;
+  const visualOverlap = isInterference ? Math.max(3.5, rawOverlap) : 0;
+  set('sim2InterferenceTop', { y: shaftY, height: visualOverlap });
+  set('sim2InterferenceBottom', { y: holeBottom - (visualOverlap > rawOverlap ? (visualOverlap - rawOverlap) : 0), height: visualOverlap });
+
+  // 尺寸線與箭頭位置
+  set('sim2DimShaftOD', { y1: shaftY, y2: shaftY + shaftH });
+  set('sim2DimHoleID', { y1: holeTop, y2: holeBottom });
+  
+  // 左側 di 尺寸線：依實際 di 大小顯示箭頭範圍
+  set('sim2DimShaftID', { y1: shaftIDTop, y2: shaftIDBottom });
+
+  // 標籤 Y 軸位置 (do 固定在上方，其餘跟隨中心)
+const labelShaftY = Math.max(50, Math.min(270, shaftY + shaftH / 2 - 5));
+  const labelHoleY = Math.max(70, Math.min(290, holeTop + holeH / 2 + 20));
+  const labelShaftIDY = Math.max(50, Math.min(290, shaftIDTop + shaftIDH / 2));
+
+  set('sim2LabelShaftOD', { y: labelShaftY });
+  set('sim2LabelHoleID', { y: labelHoleY });
+  set('sim2LabelShaftID', { y: labelShaftIDY });
+}
+
+function applySelectedMaterialProperties(targetKey) {
+    const isOuter = targetKey === 'sim2_hole';
+
+    const typeSel = document.getElementById(
+        isOuter ? 'cmb_ob_MatType' : 'cmb_ib_MatType'
+    );
+    const nameSel = document.getElementById(
+        isOuter ? 'cmb_ob_MatName' : 'cmb_ib_MatName'
+    );
+
+    const ymInput = document.getElementById(isOuter ? 'txt_obe' : 'txt_ibe');
+    const syInput = document.getElementById(isOuter ? 'txt_obsy' : 'txt_ibsy');
+    const prInput = document.getElementById(isOuter ? 'txt_obn' : 'txt_ibn');
+    const cteInput = document.getElementById(isOuter ? 'txt_obcte' : 'txt_ibcte');
+    const rhoInput = document.getElementById(isOuter ? 'txt_obrho' : 'txt_ibrho');
+
+    const propertyInputs = [ymInput, syInput, prInput, cteInput, rhoInput]
+        .filter(Boolean);
+
+    // 自定義：材料名稱停用，五項材料參數解鎖
+    if (typeSel.value === '自定義') {
+        nameSel.disabled = true;
+
+        propertyInputs.forEach(input => {
+            input.readOnly = false;
+            input.classList.remove('input-locked');
+        });
+
+        calcSim2();
+        return;
+    }
+
+    // 資料庫材料：五項材料參數鎖定
+    nameSel.disabled = false;
+
+    propertyInputs.forEach(input => {
+        input.readOnly = true;
+        input.classList.add('input-locked');
+    });
+
+    const type = typeSel.value;
+    const name = nameSel.value;
+
+    const item = materialsCache.find(m =>
+        Array.isArray(m.data) &&
+        m.data[0] === type &&
+        String(m.data[1] ?? '') === name
+    );
+
+    if (!item) {
+        propertyInputs.forEach(input => {
+            input.value = '';
+        });
+        calcSim2();
+        return;
+    }
+
+    const d = item.data;
+
+    // 欄位索引依照 materials_db.html 的資料結構
+    if (ymInput) ymInput.value = Number(d[13]) * 1000; // 彈性模數：GPa → MPa
+    if (syInput) syInput.value = d[6];                 // 屈服強度：MPa
+    if (prInput) prInput.value = d[12];                // 蒲松比
+    if (cteInput) cteInput.value = d[10];              // 熱膨脹係數
+
+    // 資料庫密度可能是 g/cm³（例如 7.85）或 kg/m³（例如 7850）。
+    // 先統一成 kg/m³，再轉成目前下拉選單所顯示的單位，避免「數值與單位不一致」。
+    const density = Number(d[2]);
+    const rhoUnitSel = document.getElementById(isOuter ? 'cbo_unit_obrho' : 'cbo_unit_ibrho');
+    if (rhoInput) {
+        if (Number.isFinite(density) && density > 0 && window.UnitConverter) {
+            const densityKgM3 = density < 100 ? density * 1000 : density;
+            const displayUnit = rhoUnitSel?.value || 'g/cm³';
+            rhoInput.value = UnitConverter.convert(densityKgM3, 'kg/m³', displayUnit, '密度');
+        } else {
+            rhoInput.value = '';
+        }
+    }
+
+    calcSim2();
+}
+
+  function calcSim2() {
+    updateSim2Diagram();
+    const Pi = Math.PI;
+    const torque_Nmm = parseTorque(parseFloat(document.getElementById('txt_torque').value) || 0, document.getElementById('cbo_unit_torque').value);
+    const force_N = parseForce(parseFloat(document.getElementById('txt_force').value) || 0, document.getElementById('cbo_unit_force').value);
+    const mu = parseFloat(document.getElementById('txt_mu').value) || 0.15;
+    const temp_C = parseFloat(document.getElementById('txt_ot').value) || 0; 
+    const rpm_rads = parseSpeed(parseFloat(document.getElementById('txt_rpm').value) || 0,
+  document.getElementById('cbo_unit_rpm').value
+);
+    const ddt_mm = parseLength(parseFloat(document.getElementById('txt_ddt').value) || 0, document.getElementById('cbo_unit_ddt').value);
+    const obod_mm = parseLength(parseFloat(document.getElementById('txt_obod').value) || 0, document.getElementById('cbo_unit_obod').value);
+    const obid_mm = parseLength(parseFloat(document.getElementById('txt_obid').value) || 0, document.getElementById('cbo_unit_obid').value);
+    const obptol_mm = parseLength(parseFloat(document.getElementById('txt_obptol').value) || 0, document.getElementById('cbo_unit_obptol').value);
+    const obmtol_mm = parseLength(parseFloat(document.getElementById('txt_obmtol').value) || 0, document.getElementById('cbo_unit_obmtol').value);
+    const L_mm = parseLength(parseFloat(document.getElementById('txt_L').value) || 0, document.getElementById('cbo_unit_L').value);
+    const ibod_mm = parseLength(parseFloat(document.getElementById('txt_ibod').value) || 0, document.getElementById('cbo_unit_ibod').value);
+    const ibid_mm = parseLength(parseFloat(document.getElementById('txt_ibid').value) || 0, document.getElementById('cbo_unit_ibid').value);
+    const ibptol_mm = parseLength(parseFloat(document.getElementById('txt_ibptol').value) || 0, document.getElementById('cbo_unit_ibptol').value);
+    const ibmtol_mm = parseLength(parseFloat(document.getElementById('txt_ibmtol').value) || 0, document.getElementById('cbo_unit_ibmtol').value);
+    const obe_MPa = parsePressure(parseFloat(document.getElementById('txt_obe').value) || 0, document.getElementById('cbo_unit_obe').value);
+    const obsy_MPa = parsePressure(parseFloat(document.getElementById('txt_obsy').value) || 0, document.getElementById('cbo_unit_obsy').value);
+    const obn = parseFloat(document.getElementById('txt_obn').value) || 0.3;
+    const obcte = parseFloat(document.getElementById('txt_obcte').value) || 1.17e-5;
+    const obrho_gcm3 = parseDensity(parseFloat(document.getElementById('txt_obrho').value) || 0,
+  document.getElementById('cbo_unit_obrho').value
+);
+    const ibe_MPa = parsePressure(parseFloat(document.getElementById('txt_ibe').value) || 0, document.getElementById('cbo_unit_ibe').value);
+    const ibsy_MPa = parsePressure(parseFloat(document.getElementById('txt_ibsy').value) || 0, document.getElementById('cbo_unit_ibsy').value);
+    const ibn = parseFloat(document.getElementById('txt_ibn').value) || 0.3;
+    const ibcte = parseFloat(document.getElementById('txt_ibcte').value) || 1.17e-5;
+    const ibrho_gcm3 = parseDensity(parseFloat(document.getElementById('txt_ibrho').value) || 0,
+  document.getElementById('cbo_unit_ibrho').value
+);
+    const obscf = parseFloat(document.getElementById('txt_obscf').value) || 1.2;
+    const ibscf = parseFloat(document.getElementById('txt_ibscf').value) || 1.2;
+
+    if (obe_MPa <= 0 || ibe_MPa <= 0 || obid_mm <= 0 || ibod_mm <= 0 || L_mm <= 0) return;
+
+    const Ao = Pi * (Math.pow(obod_mm / 2, 2) - Math.pow(obid_mm / 2, 2));
+    const Ai = Pi * (Math.pow(ibod_mm / 2, 2) - Math.pow(ibid_mm / 2, 2));
+    const ddp = force_N * ((obn * (obid_mm / 2) / (obe_MPa * Ao)) - (ibn * (ibod_mm / 2) / (ibe_MPa * Ai)));
+    const ted = (obid_mm / 2) * (temp_C - 20) * (ibcte - obcte);
+    let robd = 0, ribd = 0;
+    if (rpm_rads > 0) {
+      const omega2 = Math.pow(rpm_rads, 2);
+      const r_i = obid_mm / 2000, r_o = obod_mm / 2000;
+      if (r_o > r_i) {
+        const A1 = (obrho_gcm3 * 1000 * omega2) / (8 * obe_MPa * 1000000 / (1 - Math.pow(obn, 2)));
+        const B1 = -Math.pow(r_i, 3) + (3 + obn) * (((Math.pow(r_o, 2) + Math.pow(r_i, 2)) * r_i) / (4 * (1 + obn)) + Math.pow(r_o, 2) * Math.pow(r_i, 2) / (16 * (1 - obn) * r_i));
+        robd = A1 * B1;
+      }
+      const r_i2 = ibid_mm / 2000, r_o2 = ibod_mm / 2000;
+      if (r_o2 > r_i2 && r_o2 > 0) {
+        const A2 = (ibrho_gcm3 * 1000 * omega2) / (8 * ibe_MPa * 1000000 / (1 - Math.pow(ibn, 2)));
+        const B2 = -Math.pow(r_o2, 3) + (3 + ibn) * (((Math.pow(r_o2, 2) + Math.pow(r_i2, 2)) * r_o2) / (4 * (1 + ibn)) + Math.pow(r_o2, 2) * Math.pow(r_i2, 2) / (16 * (1 - ibn) * r_o2));
+        ribd = A2 * B2;
+      }
+    }
+    const addi = (ddp + ted - robd + ribd) * 2;
+    const maxdelta_mm = (ibod_mm + ibptol_mm) - (obid_mm - obmtol_mm) + ddt_mm + addi;
+    const mindelta_mm = (ibod_mm - ibmtol_mm) - (obid_mm + obptol_mm) + ddt_mm + addi;
+    const robdtCalc = (obid_mm * obcte !== 0) ? ((maxdelta_mm + ddt_mm) / (obid_mm * obcte)) : 0;
+    const ribdtCalc = (ibod_mm * ibcte !== 0) ? ((maxdelta_mm + ddt_mm) / (ibod_mm * ibcte)) : 0;
+    const od_diff = Math.pow(obod_mm, 2) - Math.pow(obid_mm, 2);
+    const id_diff = Math.pow(ibod_mm, 2) - Math.pow(ibid_mm, 2);
+    const C1 = ((Math.pow(obid_mm, 2) + Math.pow(obod_mm, 2)) / od_diff + obn) * obid_mm / obe_MPa;
+    const C2 = id_diff > 0 ? (((Math.pow(ibid_mm, 2) + Math.pow(ibod_mm, 2)) / id_diff - ibn) * ibod_mm / ibe_MPa) : ((1 - ibn) * ibod_mm / ibe_MPa);
+
+    let maxip_MPa = maxdelta_mm / (C1 + C2);
+    let minip_MPa = mindelta_mm / (C1 + C2);
+    maxip_MPa = maxip_MPa < 0 ? 0 : maxip_MPa;
+    minip_MPa = minip_MPa < 0 ? 0 : minip_MPa;
+
+    const Fpfmax_N = mu * maxip_MPa * Pi * obid_mm * L_mm;
+    const Fpfmin_N = mu * minip_MPa * Pi * obid_mm * L_mm;
+    const maxt_Nmm = maxip_MPa * Math.pow(obid_mm, 2) * Pi * L_mm * mu / 2;
+    const mint_Nmm = minip_MPa * Math.pow(obid_mm, 2) * Pi * L_mm * mu / 2;
+    const requiredPI_MPa = Math.sqrt(Math.pow(torque_Nmm / (obid_mm / 2), 2) + Math.pow(force_N, 2)) / (mu * Pi * obid_mm * L_mm);
+    const denom1 = Math.sqrt(Math.pow(2 * Math.pow(obid_mm, 2) / od_diff, 2) + Math.pow((Math.pow(obod_mm, 2) + Math.pow(obid_mm, 2)) / od_diff, 2) + 1);
+    const denom2 = id_diff > 0 ? Math.sqrt(Math.pow(2 * Math.pow(ibid_mm, 2) / id_diff, 2) + Math.pow((Math.pow(ibod_mm, 2) + Math.pow(ibid_mm, 2)) / id_diff, 2) + 1) : Math.sqrt(2);
+    const Pobmax_MPa = obsy_MPa / denom1;
+    const Pibmax_MPa = ibsy_MPa / denom2;
+    const Pimax_MPa = Math.min(Pobmax_MPa, Pibmax_MPa);
+    const yieldt_Nmm = Pimax_MPa * Math.pow(obid_mm, 2) * mu / 2 * Pi * L_mm;
+
+    // 應力與等效應力：逐項對應原始 VBA PerformCalculation 第 16、17 節
+    // VBA 使用工作轉速 rpm 原始數值計算離心應力，不以轉速下拉選單轉換後的值替代。
+    const rpmRaw = parseFloat(document.getElementById('txt_rpm').value) || 0;
+    const omegaFactor = Math.pow(2 * Pi * Math.max(0, rpmRaw) / 60, 2);
+    const obRhoKgM3 = obrho_gcm3 * 1000;
+    const ibRhoKgM3 = ibrho_gcm3 * 1000;
+    const pressureUsedOb = Math.min(maxip_MPa, Pimax_MPa);
+    const pressureUsedIb = Math.min(maxip_MPa, Pimax_MPa);
+
+    function calcVbaStress({outer, inner, pressure, displacementPressure=pressure, E, nu, rhoKgM3, isOuterBody, force, torque, rpmFactor}) {
+      const diff = outer*outer - inner*inner;
+      if (!(pressure > 0 && E > 0 && outer > 0 && (isOuterBody ? diff > 0 : true))) {
+        return {disp:0, sr:0, sc:0, sz:0, tau:0, rc:0, cc:0, vm:0, sf:0, outerVm:0, outerSr:0, outerSc:0, innerVm:0, innerSr:0, innerSc:0};
+      }
+      const radii = isOuterBody
+        ? [inner/2, outer/2, Math.sqrt(outer*inner)/2]
+        : [inner > 0 ? inner/2 + 1e-7 : 1e-7, outer/2, inner > 0 ? (Math.sqrt(outer*inner)+1e-7)/2 : (Math.sqrt(outer*1e-7)+1e-7)/2];
+      const vals = radii.map((r, idx) => {
+        let rp, cp, axial, shear;
+        if (isOuterBody) {
+          rp = -pressure * inner*inner * (outer*outer - 4*r*r) / (4*r*r*diff);
+          cp = pressure * inner*inner * (outer*outer + 4*r*r) / (4*r*r*diff);
+          axial = 4*force/(Pi*diff);
+          const rTorque = idx===0 ? inner/2 : (idx===1 ? outer/2 : Math.sqrt(outer*inner)/2);
+          shear = (16*torque*rTorque*2)/(Pi*(Math.pow(outer,4)-Math.pow(inner,4)));
+          if (idx===0) shear = (16*torque*inner)/(Pi*(Math.pow(outer,4)-Math.pow(inner,4)));
+          if (idx===1) shear = (16*torque*outer)/(Pi*(Math.pow(outer,4)-Math.pow(inner,4)));
+        } else if (diff > 0) {
+          rp = -pressure*outer*outer*(4*r*r-inner*inner)/(4*r*r*diff);
+          cp = -pressure*outer*outer*(4*r*r+inner*inner)/(4*r*r*diff);
+          axial = 4*force/(Pi*diff);
+          const rTorque = idx===0 ? inner : (idx===1 ? outer : Math.sqrt(outer*inner));
+          shear = (16*torque*rTorque)/(Pi*(Math.pow(outer,4)-Math.pow(inner,4)));
+        } else { rp=-pressure; cp=-pressure; axial=0; shear=0; }
+        const rhoFactor=(rhoKgM3/1e9)*rpmFactor*(3+nu)/8;
+        const rc=rhoFactor*((inner*inner+outer*outer)/4-r*r-inner*inner*outer*outer/(16*r*r));
+        const cc=rhoFactor*((inner*inner+outer*outer)/4-r*r*(1+3*nu)/(3+nu)+inner*inner*outer*outer/(16*r*r));
+        const vm=Math.sqrt(((rp+rc-cp-cc)**2+(cp+cc-axial)**2+(axial-rp-rc)**2)/2+3*shear**2);
+        return {r,rp,cp,axial,shear,rc,cc,vm};
+      });
+      const maxBy=k=>Math.max(...vals.map(v=>Number.isFinite(v[k])?v[k]:0));
+      const vm=maxBy('vm');
+      const innerV=vals[0], outerV=vals[1];
+      let disp=0, sr=0, sc=0;
+      if (isOuterBody) {
+        disp=(displacementPressure*inner/(2*E))*((outer*outer+inner*inner)/diff+nu);
+        // VBA lbl_obsr / lbl_obsc：外體（孔）內徑處基準應力，使用 MIN(pimax, maxip)
+        sr=displacementPressure*inner*inner*(1-outer*outer/(inner*inner))/diff;
+        sc=displacementPressure*inner*inner*(1+outer*outer/(inner*inner))/diff;
+      } else if (inner<=0) {
+        disp=-(displacementPressure*outer/(2*E))*(1-nu); sr=-pressure; sc=-pressure;
+      } else if (diff>0) {
+        disp=-(displacementPressure*outer/(2*E))*((outer*outer+inner*inner)/diff-nu);
+        sr=-pressure*outer*outer*(1-inner*inner/(outer*outer))/diff;
+        sc=-pressure*outer*outer*(1+inner*inner/(outer*outer))/diff;
+      }
+      return {disp,sr,sc,sz:vals[0].axial||0,tau:isOuterBody?vals[0].shear:(vals[1].shear||0),rc:maxBy('rc'),cc:maxBy('cc'),vm,sf:vm>0?((isOuterBody?obsy_MPa:ibsy_MPa)/(vm*(isOuterBody?obscf:ibscf))):0, outerVm:vals[1].vm||0, outerSr:vals[1].rp+vals[1].rc, outerSc:vals[1].cp+vals[1].cc, innerVm:vals[0].vm||0, innerSr:vals[0].rp+vals[0].rc, innerSc:vals[0].cp+vals[0].cc};
+    }
+    const obStress = calcVbaStress({outer:obod_mm,inner:obid_mm,pressure:maxip_MPa,displacementPressure:Math.min(Pimax_MPa,maxip_MPa),E:obe_MPa,nu:obn,rhoKgM3:obRhoKgM3,isOuterBody:true,force:force_N,torque:torque_Nmm,rpmFactor:omegaFactor});
+    const ibStress = calcVbaStress({outer:ibod_mm,inner:ibid_mm,pressure:maxip_MPa,displacementPressure:Math.min(Pimax_MPa,maxip_MPa),E:ibe_MPa,nu:ibn,rhoKgM3:ibRhoKgM3,isOuterBody:false,force:force_N,torque:torque_Nmm,rpmFactor:omegaFactor});
+    const ob_sr=obStress.sr, ob_sc=obStress.sc, ob_sz=obStress.sz, ob_tau_extra=obStress.tau;
+    const ib_sr=ibStress.sr, ib_sc=ibStress.sc, ib_sz_extra=ibStress.sz, ib_tau_extra=ibStress.tau;
+    const ob_vm=obStress.vm, ib_vm=ibStress.vm;
+    const obCentrifugal={radial:obStress.rc,hoop:obStress.cc};
+    const ibCentrifugal={radial:ibStress.rc,hoop:ibStress.cc};
+    const ob_sr_od=obStress.outerSr, ob_sc_od=obStress.outerSc, ob_vm_od=obStress.outerVm;
+    const ib_sr_id=ibStress.innerSr, ib_sc_id=ibStress.innerSc, ib_vm_id=ibStress.innerVm;
+    const obsf=obStress.sf, ibsf=ibStress.sf;
+
+    const msmp = requiredPI_MPa > 0 ? (minip_MPa / requiredPI_MPa) : 999;
+    const msmt = torque_Nmm > 0 ? ((mint_Nmm < yieldt_Nmm ? mint_Nmm : yieldt_Nmm) / torque_Nmm) : 999;
+
+    document.getElementById('lbl_maxdelta').innerText = convertLength(maxdelta_mm, document.getElementById('cbo_unit_delta').value).toFixed(4);
+    document.getElementById('lbl_mindelta').innerText = convertLength(mindelta_mm, document.getElementById('cbo_unit_delta').value).toFixed(4);
+    document.getElementById('lbl_maxip').innerText = convertPressure(maxip_MPa, document.getElementById('cbo_unit_ip').value).toFixed(4);
+    document.getElementById('lbl_minip').innerText = convertPressure(minip_MPa, document.getElementById('cbo_unit_ip').value).toFixed(4);
+    document.getElementById('lbl_Fpfmax').innerText = convertForce(Fpfmax_N, document.getElementById('cbo_unit_Fpf').value).toFixed(2);
+    document.getElementById('lbl_Fpfmin').innerText = convertForce(Fpfmin_N, document.getElementById('cbo_unit_Fpf').value).toFixed(2);
+    document.getElementById('lbl_maxt').innerText = convertTorque(maxt_Nmm, document.getElementById('cbo_unit_t').value).toFixed(2);
+    document.getElementById('lbl_mint').innerText = convertTorque(mint_Nmm, document.getElementById('cbo_unit_t').value).toFixed(2);
+    document.getElementById('lbl_Pimax').innerText = Pimax_MPa.toFixed(2) + " MPa";
+    document.getElementById('lbl_Pobmax').innerText = Pobmax_MPa.toFixed(2) + " MPa";
+    document.getElementById('lbl_Pibmax').innerText = Pibmax_MPa.toFixed(2) + " MPa";
+    document.getElementById('lbl_yieldt').innerText = (yieldt_Nmm / 1000).toFixed(2) + " N-m";
+    document.getElementById('lbl_rPI').innerText = "限: " + requiredPI_MPa.toFixed(2) + " MPa";
+    document.getElementById('lbl_obsr').innerText = ob_sr.toFixed(1) + " MPa";
+    document.getElementById('lbl_obsc').innerText = ob_sc.toFixed(1) + " MPa";
+    document.getElementById('lbl_obvm').innerText = ob_vm.toFixed(1) + " MPa";
+    document.getElementById('lbl_obsr_od').innerText = ob_sr_od.toFixed(1) + " MPa";
+    document.getElementById('lbl_obsc_od').innerText = ob_sc_od.toFixed(1) + " MPa";
+    document.getElementById('lbl_obvm_od').innerText = ob_vm_od.toFixed(1) + " MPa";
+    document.getElementById('lbl_ibsr').innerText = ib_sr.toFixed(1) + " MPa";
+    document.getElementById('lbl_ibsc').innerText = ib_sc.toFixed(1) + " MPa";
+    document.getElementById('lbl_ibvm').innerText = ib_vm.toFixed(1) + " MPa";
+    document.getElementById('lbl_ibsr_id').innerText = ib_sr_id.toFixed(1) + " MPa";
+    document.getElementById('lbl_ibsc_id').innerText = ib_sc_id.toFixed(1) + " MPa";
+    document.getElementById('lbl_ibvm_id').innerText = ib_vm_id.toFixed(1) + " MPa";
+
+    renderStatusText('status_obvm', ob_vm, obsy_MPa, document.getElementById('cmb_ob_MatType').value === '自定義');
+    renderStatusText('status_obvm_od', ob_vm_od, obsy_MPa, document.getElementById('cmb_ob_MatType').value === '自定義');
+    renderStatusText('status_ibvm', ib_vm, ibsy_MPa, document.getElementById('cmb_ib_MatType').value === '自定義');
+    renderStatusText('status_ibvm_id', ib_vm_id, ibsy_MPa, document.getElementById('cmb_ib_MatType').value === '自定義');
+
+    updateMSCard('lbl_msmp', 'card_msmp', msmp);
+    updateMSCard('lbl_msmt', 'card_msmt', msmt);
+    updateMSCard('lbl_obsf', 'card_obsf', obsf);
+    updateMSCard('lbl_ibsf', 'card_ibsf', ibsf);
+
+    // 對應原始 VBA 的補償量、溫差需求及完整應力分量顯示
+    const setText = (id, value, digits=4) => { const el = document.getElementById(id); if (el) el.innerText = Number.isFinite(value) ? value.toFixed(digits) : 'N/A'; };
+    setText('lbl_ddp', ddp); setText('lbl_ted', ted); setText('lbl_robd', robd); setText('lbl_ribd', ribd); setText('lbl_addi', addi);
+    setText('lbl_robdt', robdtCalc, 1); setText('lbl_ribdt', ribdtCalc, 1); setText('lbl_ibod_addi', ibod_mm + addi);
+    setText('lbl_ob_disp', obStress.disp); setText('lbl_obsz', ob_sz, 3); setText('lbl_obtau', ob_tau_extra, 3);
+    setText('lbl_obrc', obCentrifugal.radial, 3); setText('lbl_obcc', obCentrifugal.hoop, 3);
+    setText('lbl_ib_disp', ibStress.disp); setText('lbl_ibsz', ib_sz_extra, 3); setText('lbl_ibtau', ib_tau_extra, 3);
+    setText('lbl_ibrc', ibCentrifugal.radial, 3); setText('lbl_ibcc', ibCentrifugal.hoop, 3);
+    const warnings = [];
+    if (torque_Nmm <= 0 && force_N <= 0) warnings.push('沒有扭矩與軸向力需求');
+    else if (torque_Nmm <= 0 && force_N > 0) warnings.push('沒有扭矩需求');
+    if (msmp > 0 && msmp < 1) warnings.push('壓力安全裕度不足（所需壓力大於最小實際壓力）');
+    if (msmt > 0 && msmt < 1) warnings.push('扭矩安全裕度不足（所需扭矩大於最小傳遞扭矩）');
+    if (obsf > 0 && obsf < 1) warnings.push('外體安全係數不足（等效應力超過屈服強度）');
+    if (ibsf > 0 && ibsf < 1) warnings.push('內體安全係數不足（等效應力超過屈服強度）');
+    const riskEl = document.getElementById('lbl_Result16');
+    if (riskEl) riskEl.innerText = warnings.length ? warnings.map((w,i)=>`${i+1}. ${w}`).join('\n') : '未發現低於 1.0 的安全裕度／係數。';
+  }
+
+  function renderStatusText(elId, val, yieldStress, isCustom) {
+    const el = document.getElementById(elId);
+    if (isCustom) {
+      el.innerText = "- (自定義)"; el.className = "highlight-neutral";
+    } else {
+      const limit = yieldStress * 0.8;
+      el.innerText = val >= limit ? `⚠️ 過載 (≥ ${limit.toFixed(0)})` : `✅ 安全 (< ${limit.toFixed(0)})`;
+      el.className = val >= limit ? 'highlight-alert' : 'highlight-pass';
+    }
+  }
+
+  function updateMSCard(lblId, cardId, msVal) {
+    const lbl = document.getElementById(lblId);
+    const card = document.getElementById(cardId);
+    lbl.innerText = msVal > 100 ? "N/A" : msVal.toFixed(2);
+    card.className = msVal < 1.0 ? "highlight-alert" : "highlight-pass";
+  }
+
+  // --- 客戶/機種連動邏輯 ---
+  function onCustomerChangeSim2() {
+      updateModelDropdown('cboCustomerSim2', 'cboModelSim2');
+  }
+
+  function refreshCustomerAndModels() {
+      populateCustomerDropdown('cboCustomerSim2');
+      updateModelDropdown('cboCustomerSim2', 'cboModelSim2');
+  }
+
+  function loadLocalRecordsSim2() {
+    const saved = localStorage.getItem('taigene_stress_records_sim2');
+    recordsCacheSim2 = saved ? JSON.parse(saved) : [];
+    renderRecordsTableSim2();
+  }
+
+  function saveLocalRecordsSim2() {
+    localStorage.setItem('taigene_stress_records_sim2', JSON.stringify(recordsCacheSim2));
+  }
+
+  function renderRecordsTableSim2() {
+    const tbody = document.getElementById('dbTbodySim2'); if (!tbody) return;
+    tbody.innerHTML = '';
+    recordsCacheSim2.forEach((d, idx) => {
+      const tr = document.createElement('tr');
+      if (idx === editingRecIndexSim2) tr.style.background = '#fff7cc';
+      tr.onclick = () => { selectedRecIndexSim2 = idx; };
+      tr.ondblclick = () => { selectedRecIndexSim2 = idx; handleEditRecordSim2(); };
+      const values = [idx + 1, d.customer, d.model, d.note, d.maxdelta, d.mindelta, d.maxip, d.Fpfmax, d.maxt, d.obvm, d.ibvm];
+      values.forEach(v => { const td = document.createElement('td'); td.textContent = v ?? ''; tr.appendChild(td); });
+      const action = document.createElement('td');
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button'; loadBtn.className = 'action-btn btn-secondary'; loadBtn.textContent = '載入';
+      loadBtn.onclick = (ev) => { ev.stopPropagation(); selectedRecIndexSim2 = idx; handleEditRecordSim2(); };
+      action.appendChild(loadBtn); tr.appendChild(action);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function handleSaveRecordSim2() {
+    const customer = document.getElementById('cboCustomerSim2').value;
+    const model = document.getElementById('cboModelSim2').value;
+    if (customer === "無" || model === "無") return alert('請選擇客戶與機種名稱！');
+    const record = {
+      customer, model, note: document.getElementById('txtProjectNoteSim2').value,
+      obod: document.getElementById('txt_obod').value,
+      obid: document.getElementById('txt_obid').value,
+      obptol: document.getElementById('txt_obptol').value,
+      obmtol: document.getElementById('txt_obmtol').value,
+      obe: document.getElementById('txt_obe').value,
+      obsy: document.getElementById('txt_obsy').value,
+      obn: document.getElementById('txt_obn').value,
+      obcte: document.getElementById('txt_obcte').value,
+      obrho: document.getElementById('txt_obrho').value,
+      unit_obrho: document.getElementById('cbo_unit_obrho').value,
+      L: document.getElementById('txt_L').value,
+      ibod: document.getElementById('txt_ibod').value,
+      ibid: document.getElementById('txt_ibid').value,
+      ibptol: document.getElementById('txt_ibptol').value,
+      ibmtol: document.getElementById('txt_ibmtol').value,
+      ibe: document.getElementById('txt_ibe').value,
+      ibsy: document.getElementById('txt_ibsy').value,
+      ibn: document.getElementById('txt_ibn').value,
+      ibcte: document.getElementById('txt_ibcte').value,
+      ibrho: document.getElementById('txt_ibrho').value,
+      unit_ibrho: document.getElementById('cbo_unit_ibrho').value,
+      ddt: document.getElementById('txt_ddt').value,
+      obscf: document.getElementById('txt_obscf').value,
+      ibscf: document.getElementById('txt_ibscf').value,
+      torque: document.getElementById('txt_torque').value,
+      force: document.getElementById('txt_force').value,
+      mu: document.getElementById('txt_mu').value,
+      ot: document.getElementById('txt_ot').value,
+      rpm: document.getElementById('txt_rpm').value,
+      unit_torque: document.getElementById('cbo_unit_torque').value,
+      unit_force: document.getElementById('cbo_unit_force').value,
+      unit_ot: document.getElementById('cbo_unit_ot').value,
+      unit_rpm: document.getElementById('cbo_unit_rpm').value,
+      units: Object.fromEntries(Array.from(document.querySelectorAll('select[id^="cbo_unit_"]')).map(el => [el.id, el.value])),
+      ibMatType: document.getElementById('cmb_ib_MatType').value,
+      ibMatName: document.getElementById('cmb_ib_MatName').value,
+      obMatType: document.getElementById('cmb_ob_MatType').value,
+      obMatName: document.getElementById('cmb_ob_MatName').value,
+      maxdelta: document.getElementById('lbl_maxdelta').innerText,
+      mindelta: document.getElementById('lbl_mindelta').innerText,
+      maxip: document.getElementById('lbl_maxip').innerText,
+      Fpfmax: document.getElementById('lbl_Fpfmax').innerText,
+      maxt: document.getElementById('lbl_maxt').innerText,
+      obvm: document.getElementById('lbl_obvm').innerText,
+      ibvm: document.getElementById('lbl_ibvm').innerText
+    };
+    if (editingRecIndexSim2 !== null && recordsCacheSim2[editingRecIndexSim2]) {
+      record.id = recordsCacheSim2[editingRecIndexSim2].id || `sim2-${Date.now()}`;
+      recordsCacheSim2[editingRecIndexSim2] = record;
+      selectedRecIndexSim2 = editingRecIndexSim2;
+      alert('✅ 已更新目前設計紀錄。');
+    } else {
+      record.id = `sim2-${Date.now()}`;
+      recordsCacheSim2.unshift(record);
+      selectedRecIndexSim2 = 0;
+      editingRecIndexSim2 = 0;
+      alert('✅ 仿真 2 新設計已儲存！');
+    }
+    saveLocalRecordsSim2();
+    renderRecordsTableSim2();
+    updateSaveButtonLabelSim2();
+  }
+
+  function handleEditRecordSim2() {
+    if (selectedRecIndexSim2 === null || !recordsCacheSim2[selectedRecIndexSim2]) return alert('請先選取歷史紀錄！');
+    const idx = selectedRecIndexSim2;
+    const d = recordsCacheSim2[idx];
+    isRestoringRecordSim2 = true;
+    try {
+      refreshCustomerAndModels();
+      document.getElementById('cboCustomerSim2').value = d.customer || '無';
+      onCustomerChangeSim2();
+      document.getElementById('cboModelSim2').value = d.model || '無';
+      document.getElementById('txtProjectNoteSim2').value = d.note || '';
+
+      const fieldMap = {txt_obod:'obod',txt_obid:'obid',txt_obptol:'obptol',txt_obmtol:'obmtol',txt_L:'L',txt_ibod:'ibod',txt_ibid:'ibid',txt_ibptol:'ibptol',txt_ibmtol:'ibmtol',txt_ddt:'ddt',txt_obscf:'obscf',txt_ibscf:'ibscf',txt_torque:'torque',txt_force:'force',txt_mu:'mu',txt_ot:'ot',txt_rpm:'rpm'};
+      Object.entries(fieldMap).forEach(([id,key]) => { const el=document.getElementById(id); if(el && d[key] !== undefined) el.value=d[key]; });
+
+      // 先恢復材料類型／名稱，再恢復存檔中的完整材料數值，避免自定義材料被資料庫預設值覆蓋。
+      const restoreMaterial = (prefix, typeKey, nameKey, props) => {
+        const typeSel=document.getElementById(`cmb_${prefix}_MatType`), nameSel=document.getElementById(`cmb_${prefix}_MatName`);
+        const type=d[typeKey] || '自定義', name=d[nameKey] || '';
+        if (![...typeSel.options].some(o=>o.value===type)) typeSel.add(new Option(type,type));
+        typeSel.value=type;
+        onMaterialDropdownChange(prefix==='ob'?'sim2_hole':'sim2', true);
+        if (type !== '自定義') {
+          if (![...nameSel.options].some(o=>o.value===name)) nameSel.add(new Option(name,name));
+          nameSel.value=name;
+          // 載入資料庫材料時，讓材料選擇流程先完成，再由存檔值做最後還原。
+          applySelectedMaterialProperties(prefix==='ob'?'sim2_hole':'sim2');
+        }
+        props.forEach(([id,key])=>{const el=document.getElementById(id); if(el && d[key] !== undefined) el.value=d[key];});
+      };
+      restoreMaterial('ob','obMatType','obMatName', [['txt_obe','obe'],['txt_obsy','obsy'],['txt_obn','obn'],['txt_obcte','obcte'],['txt_obrho','obrho']]);
+      restoreMaterial('ib','ibMatType','ibMatName', [['txt_ibe','ibe'],['txt_ibsy','ibsy'],['txt_ibn','ibn'],['txt_ibcte','ibcte'],['txt_ibrho','ibrho']]);
+
+      // 舊紀錄相容：若沒有儲存單位物件，至少還原原本明確儲存的單位。
+      const units = d.units || {cbo_unit_obrho:d.unit_obrho,cbo_unit_ibrho:d.unit_ibrho,cbo_unit_torque:d.unit_torque,cbo_unit_force:d.unit_force,cbo_unit_ot:d.unit_ot,cbo_unit_rpm:d.unit_rpm};
+      Object.entries(units).forEach(([id,value])=>{const el=document.getElementById(id); if(el && value && [...el.options].some(o=>o.value===value)) {el.value=value; el.dataset.previousUnit=value;}});
+      editingRecIndexSim2 = idx;
+      selectedRecIndexSim2 = idx;
+    } finally {
+      isRestoringRecordSim2 = false;
+    }
+    calcSim2();
+    renderRecordsTableSim2();
+    updateSaveButtonLabelSim2();
+    alert('✅ 設計已載入。修改後按「更新紀錄」會覆寫此筆；若要新增副本，請按「另存為新件」。');
+  }
+
+  function updateSaveButtonLabelSim2() {
+    const btn=document.getElementById('btnSaveRecordSim2');
+    if(btn) btn.textContent = editingRecIndexSim2 === null ? '💾 儲存新紀錄' : '💾 更新紀錄';
+  }
+
+  function startNewRecordSim2() {
+    editingRecIndexSim2 = null;
+    selectedRecIndexSim2 = null;
+    updateSaveButtonLabelSim2();
+    renderRecordsTableSim2();
+    alert('已切換為新件模式；按「儲存新紀錄」會新增一筆，不會覆寫既有紀錄。');
+  }
+
+  function exportRecordsSim2() {
+    const blob = new Blob([JSON.stringify(recordsCacheSim2, null, 2)], {type:'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(blob); const a=document.createElement('a');
+    a.href=url; a.download='sim2_design_records.json'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  function importRecordsSim2(event) {
+    const file=event.target.files && event.target.files[0]; if(!file) return;
+    file.text().then(text=>{
+      const data=JSON.parse(text); if(!Array.isArray(data)) throw new Error('JSON 格式必須是紀錄陣列');
+      recordsCacheSim2=data; saveLocalRecordsSim2(); selectedRecIndexSim2=null; editingRecIndexSim2=null;
+      renderRecordsTableSim2(); updateSaveButtonLabelSim2(); alert(`已匯入 ${data.length} 筆仿真 2 紀錄。`);
+    }).catch(err=>alert('匯入失敗：'+err.message)).finally(()=>{event.target.value='';});
+  }
+
+  function handleDeleteRecordSim2() {
+    if (selectedRecIndexSim2 === null) return alert('請先選取紀錄！');
+    if(!confirm('確認刪除此筆紀錄？')) return;
+    const deletedIndex = selectedRecIndexSim2;
+    recordsCacheSim2.splice(deletedIndex, 1);
+    if (editingRecIndexSim2 === deletedIndex) editingRecIndexSim2 = null;
+    else if (editingRecIndexSim2 !== null && editingRecIndexSim2 > deletedIndex) editingRecIndexSim2--;
+    selectedRecIndexSim2 = null;
+    saveLocalRecordsSim2();
+    renderRecordsTableSim2();
+    updateSaveButtonLabelSim2();
+    alert('✅ 已刪除！');
+  }
+
+  function resetFormSim2() {
+    selectedRecIndexSim2 = null;
+    editingRecIndexSim2 = null;
+    updateSaveButtonLabelSim2();
+    document.getElementById('txt_obod').value = "91.0000";
+    document.getElementById('txt_obid').value = "84.8500";
+    document.getElementById('txt_obptol').value = "0.0100";
+    document.getElementById('txt_obmtol').value = "0.0100";
+    document.getElementById('txt_L').value = "22.5000";
+    document.getElementById('txt_ibod').value = "85.0000";
+    document.getElementById('txt_ibid').value = "77.0000";
+    document.getElementById('txt_ibptol').value = "0.0300";
+    document.getElementById('txt_ibmtol').value = "0.0300";
+    document.getElementById('txt_ddt').value = "0";
+    document.getElementById('txt_obscf').value = "1.2";
+    document.getElementById('txt_ibscf').value = "1.2";
+    document.getElementById('txt_torque').value = "21";
+    document.getElementById('txt_force').value = "1000";
+    document.getElementById('txt_mu').value = "0.15";
+    document.getElementById('txt_ot').value = "20";
+    document.getElementById('txt_rpm').value = "0";
+    refreshCustomerAndModels();
+    populateAllMaterialDropdowns();
+    alert('🔄 仿真 2 已重置為預設規格。');
+  }
+
+/*
+ * 仿真 2 單位換算核心
+ * 內部計算基準：
+ * 長度 mm、應力 MPa、扭矩 N-mm、力 N、密度 g/cm³、轉速 rad/s
+ */
+// ============================================================
+// 所有單位轉換統一呼叫 modules/unit_converter.js
+// 計算核心內部單位：長度 mm、扭矩 N·mm、力 N、壓力 MPa、
+// 密度 g/cm³、轉速 rad/s。保留舊函式名稱，避免改動既有計算公式。
+// ============================================================
+function unitConvert(v, from, to, category) {
+  if (!window.UnitConverter) throw new Error("UnitConverter 未載入，請確認 unit_converter.js 路徑");
+  return UnitConverter.convert(Number(v), from, to, category);
+}
+
+function parseTorque(v, u) {
+  const aliases = {"N-m":"N·m","kN-m":"kN·m","N-cm":"N·cm","kgf-m":"kgf·m","kgf-cm":"kgf·cm","gf-cm":"gf·cm","lbf-in":"lbf·in","lbf-ft":"lbf·ft","N-mm":"N·mm"};
+  return unitConvert(v, aliases[u] || u, "N·mm", "力矩／扭矩");
+}
+function convertTorque(v, u) {
+  const aliases = {"N-m":"N·m","kN-m":"kN·m","N-cm":"N·cm","kgf-m":"kgf·m","kgf-cm":"kgf·cm","gf-cm":"gf·cm","lbf-in":"lbf·in","lbf-ft":"lbf·ft","N-mm":"N·mm"};
+  return unitConvert(v, "N·mm", aliases[u] || u, "力矩／扭矩");
+}
+function parseForce(v, u) {
+  return unitConvert(v, (u === "kg" ? "kgf" : u), "N", "力");
+}
+function convertForce(v, u) {
+  return unitConvert(v, "N", (u === "kg" ? "kgf" : u), "力");
+}
+function parseLength(v, u) {
+  const aliases = {"um":"µm","μm":"µm"};
+  return unitConvert(v, aliases[u] || u, "mm", "長度");
+}
+function convertLength(v, u) {
+  const aliases = {"um":"µm","μm":"µm"};
+  return unitConvert(v, "mm", aliases[u] || u, "長度");
+}
+function parsePressure(v, u) {
+  return unitConvert(v, u, "MPa", "壓力／應力");
+}
+function convertPressure(v, u) {
+  return unitConvert(v, "MPa", u, "壓力／應力");
+}
+function changeDensityUnit(inputId, selectId) {
+  const input = document.getElementById(inputId);
+  const select = document.getElementById(selectId);
+  if (!input || !select) return;
+  const previousUnit = select.dataset.previousUnit || select.value;
+  const nextUnit = select.value;
+  const value = Number(input.value);
+  if (input.value.trim() !== '' && Number.isFinite(value) && previousUnit !== nextUnit) {
+    input.value = UnitConverter.convert(value, previousUnit, nextUnit, '密度');
+  }
+  select.dataset.previousUnit = nextUnit;
+  calcSim2();
+}
+
+function parseDensity(v, u) {
+  return unitConvert(v, u, "g/cm³", "密度");
+}
+function parseSpeed(v, u) {
+  return unitConvert(v, u, "rad/s", "轉速／角速度");
+}
+function parseTemperatureDifference(v, u) {
+  // 此欄位是溫差，不是絕對溫度；1 °C 溫差 = 1 K 溫差。
+  return Number(v);
+}
+function parseCTE(v, u) {
+  // 1/°C 與 1/K 的數值相同。
+  return Number(v);
+}
+
+function setupUnitComboBoxes() {
+  const torqueUnits = [
+    "N-m", "kN-m", "N-cm", "kgf-m",
+    "kgf-cm", "gf-cm", "lbf-in", "lbf-ft",
+    "N-mm"
+  ];
+  const forceUnits = ["N", "kgf"];
+  const tempUnits = ["°C", "K"];
+  const speedUnits = ["rpm", "r/min", "rad/s", "r/s", "°/s", "°/min"];
+  const lenUnits = ["mm", "m", "cm", "um", "nm", "in", "ft"];
+  const pressureUnits = [
+    "MPa", "GPa", "kPa", "Pa", "psi", "kgf/mm²", "kgf/cm²"
+  ];
+  const densityUnits = [
+    "g/cm³", "kg/m³", "kg/cm³", "kg/mm³",
+    "g/m³", "g/mm³", "lb/ft³", "lb/in³"
+  ];
+  const cteUnits = ["1/°C", "1/K"];
+  const fillSelect = (id, arr, defaultValue) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = "";
+    arr.forEach(u => el.add(new Option(u, u)));
+    if (defaultValue && arr.includes(defaultValue)) {
+      el.value = defaultValue;
+    }
+  };
+
+  [
+    "cbo_unit_obod", "cbo_unit_obid",
+    "cbo_unit_obptol", "cbo_unit_obmtol",
+    "cbo_unit_L", "cbo_unit_ibod", "cbo_unit_ibid",
+    "cbo_unit_ibptol", "cbo_unit_ibmtol", "cbo_unit_ddt"
+  ].forEach(id => fillSelect(id, lenUnits, "mm"));
+
+  [
+    "cbo_unit_obe", "cbo_unit_obsy",
+    "cbo_unit_ibe", "cbo_unit_ibsy"
+  ].forEach(id => fillSelect(id, pressureUnits, "MPa"));
+
+  ["cbo_unit_obrho", "cbo_unit_ibrho"].forEach(id => {
+    fillSelect(id, densityUnits, "g/cm³");
+    const select = document.getElementById(id);
+    if (select) select.dataset.previousUnit = select.value;
+  });
+  ["cbo_unit_obcte", "cbo_unit_ibcte"].forEach(id => fillSelect(id, cteUnits, "1/°C"));
+
+  fillSelect("cbo_unit_torque", torqueUnits, "N-m");
+  fillSelect("cbo_unit_force", forceUnits, "N");
+  fillSelect("cbo_unit_ot", tempUnits, "°C");
+  fillSelect("cbo_unit_rpm", speedUnits, "rpm");
+
+  fillSelect("cbo_unit_delta", ["mm", "m", "cm", "um", "nm", "in", "ft"], "mm");
+  fillSelect("cbo_unit_ip", pressureUnits, "MPa");
+  fillSelect("cbo_unit_Fpf", forceUnits, "N");
+  fillSelect("cbo_unit_t", torqueUnits, "N-m");
+}
+
+  window.onload = function() {
+    setupUnitComboBoxes();
+    loadLocalMaterials();
+    loadLocalRecordsSim2();
+    updateSaveButtonLabelSim2();
+    refreshCustomerAndModels();
+    updateSim2Diagram();
+    const custSel = document.getElementById('cboCustomerSim2');
+    if (custSel) {
+        custSel.addEventListener('focus', refreshCustomerAndModels);
+    }
+  };
+
+  window.addEventListener('storage', (e) => {
+      if (e.key === 'rd_portal_customer_models') {
+          refreshCustomerAndModels();
+      }
+  });
+
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "visible") loadLocalMaterials();
+  });
+  window.addEventListener("focus", function() {
+    loadLocalMaterials();
+  });
+</script>
+</body>
+</html>

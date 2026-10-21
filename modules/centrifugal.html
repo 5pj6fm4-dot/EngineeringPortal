@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>轉子高速離心力計算 - Taigene</title>
+  <link rel="stylesheet" href="../css/portal-style.css">
+  
+  <!-- 1. 引入客戶/機種中央資料庫 -->
+  <script src="../assets/js/project_db.js"></script>
+  
+  <!-- 2. 引入 Chart.js 用於高效互動圖表繪製 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    body { background-color: #f3f6fb; font-size: 13px; }
+    .main-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 12px; margin-top: 10px; }
+    .card { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .card-title { font-weight: bold; font-size: 14px; margin-bottom: 12px; color: #1769aa; border-bottom: 1px solid #edf2f7; padding-bottom: 6px; }
+    
+    /* 表單元件 */
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #475569; }
+    .input-box { display: flex; gap: 6px; }
+    .form-control { flex: 1; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+    .form-control:focus { outline: none; border-color: #1769aa; box-shadow: 0 0 0 3px rgba(23,105,170,0.15); }
+    select.form-control { max-width: 100px; background-color: #f8fafc; }
+    
+    /* 輸出表格 */
+    .res-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    .res-table th, .res-table td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+    .res-table th { background: #f1f5f9; color: #334155; }
+    
+    /* 歷史紀錄表格 */
+    .db-section { max-height: 180px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px; }
+    .db-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .db-table th, .db-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    .db-table th { background: #f1f5f9; position: sticky; top: 0; z-index: 5; }
+    .db-table tr:hover { background-color: #f8fafc; cursor: pointer; }
+    .db-table tr.selected { background-color: #eaf3ff; }
+    
+    /* 按鈕 */
+    .btn-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .action-btn { background: #1769aa; color: #fff; border: none; border-radius: 5px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    .action-btn:hover { background: #115293; }
+    .action-btn.btn-secondary { background: #e2e8f0; color: #334155; }
+    .action-btn.btn-secondary:hover { background: #cbd5e1; }
+    .action-btn.btn-danger { background: #dc2626; }
+    .action-btn.btn-danger:hover { background: #b91c1c; }
+    
+    /* 圖表容器 */
+    .chart-container { position: relative; width: 100%; height: 280px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. 功能工具列 (VBA 表單按鈕) -->
+  <div class="btn-toolbar">
+    <button class="action-btn" onclick="handleSaveRecordCentri()">💾 儲存紀錄</button>
+    <button class="action-btn btn-secondary" onclick="handleEditRecordCentri()">✏️ 帶入選定紀錄</button>
+    <button class="action-btn btn-danger" onclick="handleDeleteRecordCentri()">🗑️ 刪除選定紀錄</button>
+    <button class="action-btn btn-secondary" onclick="resetFormCentri()">🔄 清空重置</button>
+  </div>
+
+  <div class="main-grid">
+    <!-- 左側欄：參數設定與輸出 -->
+    <div class="left-panel">
+      <!-- 參數設定卡片 -->
+      <div class="card">
+        <div class="card-title">📥 物理與轉速參數設定</div>
+        
+        <div class="form-group">
+          <label>轉子重量 (Weight)</label>
+          <div class="input-box">
+            <input type="number" id="txtWeight" class="form-control" value="218" step="any" oninput="calculateCentri()">
+            <select id="cboWeightUnit" class="form-control" onchange="calculateCentri()">
+              <option value="g">g</option>
+              <option value="kg">kg</option>
+              <option value="N">N</option>
+              <option value="lb">lb</option>
+              <option value="oz">oz</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>旋轉半徑 (Radius)</label>
+          <div class="input-box">
+            <input type="number" id="txtRadius" class="form-control" value="20" step="any" oninput="calculateCentri()">
+            <select id="cboRadiusUnit" class="form-control" onchange="calculateCentri()">
+              <option value="m">m</option>
+              <option value="cm">cm</option>
+              <option value="mm" selected>mm</option>
+              <option value="um">μm</option>
+              <option value="yd">yd</option>
+              <option value="ft">ft</option>
+              <option value="in">in</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>額定轉速 (Speed)</label>
+          <div class="input-box">
+            <input type="number" id="txtRPM" class="form-control" value="1000" step="any" oninput="calculateCentri()">
+            <select id="cboSpeedUnit" class="form-control" onchange="calculateCentri()">
+              <option value="rpm">rpm</option>
+              <option value="rps">rps</option>
+              <option value="rad/s">rad/s</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 專案結果卡片 -->
+      <div class="card">
+        <div class="card-title">📊 專案與分析結果</div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+          <div class="form-group">
+            <label>客戶名稱</label>
+            <select id="cboCustomer" class="form-control" style="max-width:100%" onchange="onCustomerChangeCentri()"></select>
+          </div>
+          <div class="form-group">
+            <label>機種名稱</label>
+            <select id="cboModel" class="form-control" style="max-width:100%" onchange="calculateCentri()"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>專案備註</label>
+          <input type="text" id="txtRemark" class="form-control" placeholder="請輸入專案相關備註與說明...">
+        </div>
+
+        <table class="res-table">
+          <thead>
+            <tr><th>分析項目</th><th>計算數值</th><th>計算單位</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>旋轉頻率</td><td id="lblFrequency" style="font-weight:bold;">0.00</td><td>Hz</td></tr>
+            <tr><td>切向線速度</td><td id="lblLinearSpeed" style="font-weight:bold;">0.00</td><td>m/s</td></tr>
+            <tr><td>角速度</td><td id="lblAngularSpeed" style="font-weight:bold;">0.00</td><td>rad/s</td></tr>
+            <!-- 這裡使用 HTML 語意標籤 <sup> 完美展示向心加速度平方單位 -->
+            <tr><td>向心加速度</td><td id="lblAcceleration" style="font-weight:bold;">0.00</td><td>m/s<sup>2</sup></td></tr>
+            <tr><td>額定離心力 (N)</td><td id="lblForceN" style="font-weight:bold; color:#1769aa;">0.00</td><td>N</td></tr>
+            <tr><td>額定離心力 (kgf)</td><td id="lblForceKg" style="font-weight:bold; color:#16794b;">0.00</td><td>kgf</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 右側欄：對照曲線圖表與多點對照 -->
+    <div class="right-panel">
+      <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>📈 離心力對照曲線（達2倍額定轉速）</span>
+          <button class="action-btn btn-secondary btn-sm" onclick="generateCompareTable()" style="padding:4px 8px; font-size:11px;">🔍 查看多點對照數據</button>
+        </div>
+        
+        <!-- 核心繪圖 Canvas (VBA imgChart 轉化) -->
+        <div class="chart-container">
+          <canvas id="centriChart"></canvas>
+        </div>
+        
+        <p class="muted" style="margin-top:12px; line-height:1.4;">
+          💡 <b>曲線圖說明：</b><br>
+          藍色平滑曲線代表離心力隨速度二次方增長的動態軌跡。圖中 <span style="color:#dc2626; font-weight:bold;">● 紅色點</span> 代表您的額定轉速點，而 <span style="color:#16a34a; font-weight:bold;">● 綠色點</span> 代表極限高速（2倍額定）下的離心力指標，常用於離心強度與脫出安全評估。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 歷史紀錄歷史紀錄歷史紀錄歷史紀錄 -->
+  <div class="card" style="margin-top:10px;">
+    <div class="card-title">📁 Centrifuge List (本機歷史紀錄庫 - 離心力)</div>
+    <div class="db-section">
+      <table class="db-table" id="dbTableCentri">
+        <thead>
+          <tr>
+            <th>項目</th><th>客戶</th><th>機種</th><th>備註說明</th><th>重量</th><th>半徑</th><th>轉速</th><th>頻率</th><th>線速度</th><th>角速度</th><th>加速度(m/s²)</th><th>離心力(N)</th><th>離心力(kgf)</th><th>儲存時間</th>
+          </tr>
+        </thead>
+        <tbody id="dbTbodyCentri"></tbody>
+      </table>
+    </div>
+  </div>
+
+<!-- ========================================================== -->
+<!-- JAVASCRIPT 計算核心與圖表連動引擎                         -->
+<!-- ========================================================== -->
+<script>
+  'use strict';
+
+  const G_VAL = 9.80665;
+  const RECORD_KEY_CENTRI = 'taigene_centrifuge_records_v1';
+  
+  let centrifugeRecords = [];
+  let selectedRecIndexCentri = null;
+  let chartInstance = null;
+
+  // ==========================================
+  // 🔌 中央資料庫連動與初始化
+  // ==========================================
+  function onCustomerChangeCentri() {
+      updateModelDropdown('cboCustomer', 'cboModel');
+      calculateCentri();
+  }
+
+  function refreshCustomerAndModels() {
+      populateCustomerDropdown('cboCustomer');
+      updateModelDropdown('cboCustomer', 'cboModel');
+  }
+
+  // ==========================================
+  // 📐 核心物理學計算機制
+  // ==========================================
+  function calculateCentri() {
+      try {
+          const weightVal = parseFloat(document.getElementById('txtWeight').value) || 0;
+          const radiusVal = parseFloat(document.getElementById('txtRadius').value) || 0;
+          const speedVal = parseFloat(document.getElementById('txtRPM').value) || 0;
+
+          const weightUnit = document.getElementById('cboWeightUnit').value;
+          const radiusUnit = document.getElementById('cboRadiusUnit').value;
+          const speedUnit = document.getElementById('cboSpeedUnit').value;
+
+          // A. 轉換為標準國際單位 (SI)
+          const weight_kg = convertWeightToKG(weightVal, weightUnit);
+          const radius_m = convertLengthToMeter(radiusVal, radiusUnit);
+          const angularSpeed_rad_s = convertSpeedToRadPerSec(speedVal, speedUnit);
+
+          // B. 運動學與力學公式運算
+          const linearSpeed_m_s = radius_m * angularSpeed_rad_s;
+          const centripetalAccel = Math.pow(angularSpeed_rad_s, 2) * radius_m;
+          const force_N = weight_kg * centripetalAccel;
+          const force_kgf = force_N / 9.81;
+          const frequency_Hz = angularSpeed_rad_s / (2 * Math.PI);
+
+          // C. 寫入畫面展示
+          document.getElementById('lblFrequency').textContent = frequency_Hz.toFixed(2);
+          document.getElementById('lblLinearSpeed').textContent = linearSpeed_m_s.toFixed(2);
+          document.getElementById('lblAngularSpeed').textContent = angularSpeed_rad_s.toFixed(2);
+          document.getElementById('lblAcceleration').textContent = centripetalAccel.toFixed(2);
+          document.getElementById('lblForceN').textContent = force_N.toFixed(2);
+          document.getElementById('lblForceKg').textContent = force_kgf.toFixed(2);
+
+          // D. 更新動態離心曲線圖
+          updateCentriChart(weight_kg, radius_m, angularSpeed_rad_s);
+      } catch (err) {
+          console.error("計算發生錯誤: ", err);
+      }
+  }
+
+  // ==========================================
+  // 📏 單位轉換子程序
+  // ==========================================
+  function convertWeightToKG(value, unit) {
+      switch (unit) {
+          case "g": return value / 1000;
+          case "kg": return value;
+          case "N": return value / 9.81;
+          case "lb": return value * 0.453592;
+          case "oz": return value * 0.0283495;
+          default: return 0;
+      }
+  }
+
+  function convertLengthToMeter(value, unit) {
+      switch (unit) {
+          case "m": return value;
+          case "cm": return value / 100;
+          case "mm": return value / 1000;
+          case "um": return value / 1000000;
+          case "yd": return value * 0.9144;
+          case "ft": return value * 0.3048;
+          case "in": return value * 0.0254;
+          default: return 0;
+      }
+  }
+
+  function convertSpeedToRadPerSec(value, unit) {
+      switch (unit) {
+          case "rpm": return value * 2 * Math.PI / 60;
+          case "rps": return value * 2 * Math.PI;
+          case "rad/s": return value;
+          default: return 0;
+      }
+  }
+
+  // ==========================================
+  // 📈 Chart.js 高清曲線圖繪製引擎 (上標整合版)
+  // ==========================================
+  function updateCentriChart(weight_kg, radius_m, rated_rad_s) {
+      const max_rad_s = rated_rad_s * 2;
+      const numPoints = 20;
+      
+      const xData = [];
+      const yData = [];
+
+      // 產生 21 點平滑對照數據點
+      for (let i = 0; i <= numPoints; i++) {
+          const rad = (max_rad_s / numPoints) * i;
+          const forceN = weight_kg * Math.pow(rad, 2) * radius_m;
+          xData.push(parseFloat(rad.toFixed(2)));
+          yData.push(parseFloat(forceN.toFixed(2)));
+      }
+
+      const ratedForce = weight_kg * Math.pow(rated_rad_s, 2) * radius_m;
+      const maxForce = weight_kg * Math.pow(max_rad_s, 2) * radius_m;
+
+      const ctx = document.getElementById('centriChart').getContext('2d');
+
+      if (chartInstance) {
+          chartInstance.destroy(); // 銷毀舊圖防止重疊
+      }
+
+      chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+              labels: xData,
+              datasets: [
+                  {
+                      label: '額定與2倍速散佈點',
+                      data: [
+                          { x: rated_rad_s, y: ratedForce, label: '額定轉速點' },
+                          { x: max_rad_s, y: maxForce, label: '2倍極限點' }
+                      ],
+                      type: 'scatter',
+                      backgroundColor: ['#dc2626', '#16a34a'],
+                      borderColor: ['#dc2626', '#16a34a'],
+                      pointRadius: 7,
+                      pointHoverRadius: 9,
+                      showLine: false,
+                      zIndex: 10
+                  },
+                  {
+                      label: '離心力曲線 (N)',
+                      data: yData.map((y, i) => ({ x: xData[i], y: y })),
+                      borderColor: '#1769aa',
+                      backgroundColor: 'rgba(23, 105, 170, 0.05)',
+                      borderWidth: 2,
+                      pointRadius: 0, 
+                      fill: true,
+                      tension: 0.4
+                  }
+              ]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                  legend: {
+                      display: true,
+                      position: 'bottom',
+                      labels: { font: { family: '微軟正黑體', size: 11 } }
+                  },
+                  tooltip: {
+                      callbacks: {
+                          label: function(context) {
+                              if (context.dataset.type === 'scatter') {
+                                  const pt = context.raw;
+                                  return `${pt.label}: 速度 ${pt.x.toFixed(1)} rad/s, 力 ${pt.y.toFixed(1)} N`;
+                              }
+                              return `角速度: ${context.parsed.x} rad/s, 離心力: ${context.parsed.y} N`;
+                          }
+                      }
+                  }
+              },
+              scales: {
+                  x: {
+                      type: 'linear',
+                      title: { display: true, text: '角速度 ω (rad/s)', font: { family: '微軟正黑體', weight: 'bold' } },
+                      grid: { color: '#e2e8f0' }
+                  },
+                  y: {
+                      title: { display: true, text: '離心力 Fc (N)', font: { family: '微軟正黑體', weight: 'bold' } },
+                      grid: { color: '#e2e8f0' }
+                  }
+              }
+          }
+      });
+  }
+
+  // 彈出式展示對照表
+  function generateCompareTable() {
+      const weightVal = parseFloat(document.getElementById('txtWeight').value) || 0;
+      const radiusVal = parseFloat(document.getElementById('txtRadius').value) || 0;
+      const speedVal = parseFloat(document.getElementById('txtRPM').value) || 0;
+
+      const weightUnit = document.getElementById('cboWeightUnit').value;
+      const radiusUnit = document.getElementById('cboRadiusUnit').value;
+      const speedUnit = document.getElementById('cboSpeedUnit').value;
+
+      const weight_kg = convertWeightToKG(weightVal, weightUnit);
+      const radius_m = convertLengthToMeter(radiusVal, radiusUnit);
+      const rated_rad_s = convertSpeedToRadPerSec(speedVal, speedUnit);
+      const max_rad_s = rated_rad_s * 2;
+
+      // 使用 Unicode 平方字元「²」讓警示視窗更漂亮
+      let msg = `====== 離心力多點對照數據庫 ======\n`;
+      msg += `角速度(rad/s) | 頻率(Hz) | 線速度(m/s) | 加速度(m/s²) | 離心力(N)\n`;
+      msg += `------------------------------------------------------------\n`;
+
+      for (let i = 0; i <= 10; i++) {
+          const rad = (max_rad_s / 10) * i;
+          const hz = rad / (2 * Math.PI);
+          const v = radius_m * rad;
+          const acc = Math.pow(rad, 2) * radius_m;
+          const f = weight_kg * acc;
+          msg += `${rad.toFixed(1).padStart(12)} | ${hz.toFixed(1).padStart(8)} | ${v.toFixed(2).padStart(10)} | ${acc.toFixed(1).padStart(12)} | ${f.toFixed(1).padStart(8)} N\n`;
+      }
+      alert(msg);
+  }
+
+  // ==========================================
+  // 💾 本機歷史紀錄操作邏輯 (CRUD)
+  // ==========================================
+  function loadLocalRecordsCentri() {
+      const saved = localStorage.getItem(RECORD_KEY_CENTRI);
+      centrifugeRecords = saved ? JSON.parse(saved) : [];
+      renderRecordsTableCentri();
+  }
+
+  function saveLocalRecordsCentri() {
+      localStorage.setItem(RECORD_KEY_CENTRI, JSON.stringify(centrifugeRecords));
+  }
+
+  function renderRecordsTableCentri() {
+      const tbody = document.getElementById('dbTbodyCentri');
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      centrifugeRecords.forEach((item, idx) => {
+          const tr = document.createElement('tr');
+          tr.className = selectedRecIndexCentri === idx ? 'selected' : '';
+          tr.ondblclick = () => { selectedRecIndexCentri = idx; handleEditRecordCentri(); };
+          tr.onclick = () => { 
+              selectedRecIndexCentri = idx;
+              highlightSelectedRow();
+          };
+          tr.innerHTML = `
+              <td>${idx + 1}</td>
+              <td>${item.customer}</td>
+              <td>${item.model}</td>
+              <td>${item.remark}</td>
+              <td>${item.weight} ${item.weightUnit}</td>
+              <td>${item.radius} ${item.radiusUnit}</td>
+              <td>${item.speed} ${item.speedUnit}</td>
+              <td>${item.frequency} Hz</td>
+              <td>${item.linearSpeed} m/s</td>
+              <td>${item.angularSpeed} rad/s</td>
+              <td>${item.acceleration} m/s²</td>
+              <td>${item.forceN} N</td>
+              <td>${item.forceKgf} kgf</td>
+              <td>${new Date(item.timestamp).toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+      });
+  }
+
+  function highlightSelectedRow() {
+      const rows = document.querySelectorAll('#dbTbodyCentri tr');
+      rows.forEach((row, i) => {
+          row.classList.toggle('selected', i === selectedRecIndexCentri);
+      });
+  }
+
+  function handleSaveRecordCentri() {
+      const customer = document.getElementById('cboCustomer').value;
+      const model = document.getElementById('cboModel').value;
+      if (customer === "無" || model === "無") return alert('請先選擇客戶與機種名稱！');
+
+      const record = {
+          customer,
+          model,
+          remark: document.getElementById('txtRemark').value,
+          weight: document.getElementById('txtWeight').value,
+          weightUnit: document.getElementById('cboWeightUnit').value,
+          radius: document.getElementById('txtRadius').value,
+          radiusUnit: document.getElementById('cboRadiusUnit').value,
+          speed: document.getElementById('txtRPM').value,
+          speedUnit: document.getElementById('cboSpeedUnit').value,
+          frequency: document.getElementById('lblFrequency').textContent,
+          linearSpeed: document.getElementById('lblLinearSpeed').textContent,
+          angularSpeed: document.getElementById('lblAngularSpeed').textContent,
+          acceleration: document.getElementById('lblAcceleration').textContent,
+          forceN: document.getElementById('lblForceN').textContent,
+          forceKgf: document.getElementById('lblForceKg').textContent,
+          timestamp: new Date().toISOString()
+      };
+
+      centrifugeRecords.unshift(record);
+      saveLocalRecordsCentri();
+      renderRecordsTableCentri();
+      alert('✅ 離心力紀錄已成功儲存！');
+  }
+
+  function handleEditRecordCentri() {
+      if (selectedRecIndexCentri === null) return alert('請先選取一筆紀錄帶入！');
+      const d = centrifugeRecords[selectedRecIndexCentri];
+
+      refreshCustomerAndModels();
+      
+      document.getElementById('cboCustomer').value = d.customer;
+      onCustomerChangeCentri();
+      document.getElementById('cboModel').value = d.model;
+
+      document.getElementById('txtRemark').value = d.remark;
+      document.getElementById('txtWeight').value = d.weight;
+      document.getElementById('cboWeightUnit').value = d.weightUnit;
+      document.getElementById('txtRadius').value = d.radius;
+      document.getElementById('cboRadiusUnit').value = d.radiusUnit;
+      document.getElementById('txtRPM').value = d.speed;
+      document.getElementById('cboSpeedUnit').value = d.speedUnit;
+
+      calculateCentri();
+      alert('✅ 離心力歷史紀錄已帶入。');
+  }
+
+  function handleDeleteRecordCentri() {
+      if (selectedRecIndexCentri === null) return alert('請先選取欲刪除的紀錄！');
+      if (!confirm('確定刪除此筆紀錄嗎？')) return;
+
+      centrifugeRecords.splice(selectedRecIndexCentri, 1);
+      selectedRecIndexCentri = null;
+      saveLocalRecordsCentri();
+      renderRecordsTableCentri();
+      alert('✅ 刪除完成！');
+  }
+
+  function resetFormCentri() {
+      selectedRecIndexCentri = null;
+      document.getElementById('txtRemark').value = "";
+      document.getElementById('txtWeight').value = "218";
+      document.getElementById('txtRadius').value = "20";
+      document.getElementById('txtRPM').value = "1000";
+      document.getElementById('cboWeightUnit').value = "g";
+      document.getElementById('cboRadiusUnit').value = "mm";
+      document.getElementById('cboSpeedUnit').value = "rpm";
+
+      refreshCustomerAndModels();
+      calculateCentri();
+      alert('🔄 輸入值已復原為預設。');
+  }
+
+  // ==========================================
+  // 🔌 頁面生命週期初始化事件
+  // ==========================================
+  window.onload = function() {
+      // 1. 初始化資料載入
+      loadLocalRecordsCentri();
+      refreshCustomerAndModels();
+      calculateCentri();
+
+      // 2. 焦點監聽（防止跨頁管理延遲）
+      const custSel = document.getElementById('cboCustomer');
+      if (custSel) {
+          custSel.addEventListener('focus', refreshCustomerAndModels);
+      }
+  };
+
+  window.addEventListener('storage', (e) => {
+      if (e.key === 'rd_portal_customer_models') {
+          refreshCustomerAndModels();
+      }
+  });
+</script>
+</body>
+</html>

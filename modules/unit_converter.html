@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>工程單位轉換工具</title>
+  <!-- 💡 1. 引入共用單位換算腳本 -->
+  <script src="../assets/js/unit_converter.js"></script>
+<style>
+:root{color-scheme:light;--bg:#f4f7fb;--card:#fff;--ink:#1e293b;--muted:#64748b;--line:#dbe4ef;--blue:#2563eb;--bluebg:#eff6ff}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI","Microsoft JhengHei",sans-serif}.app{max-width:1400px;margin:auto;padding:22px}header{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}h1{font-size:25px;margin:0 0 4px}.sub,.muted{color:var(--muted);font-size:12px}.tag{padding:7px 12px;border-radius:20px;background:var(--bluebg);color:#1d4ed8;font-size:12px;font-weight:bold;border:1px solid #bfdbfe}.layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px;align-items:start}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;box-shadow:0 3px 12px #0f172a08;overflow:hidden;margin-bottom:18px}.head{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}.head h2{font-size:15px;margin:0}.body{padding:18px}.field{margin-bottom:15px}label{display:block;margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:700}input,select,button{font:inherit}input,select{width:100%;min-width:0;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:var(--ink)}input:focus,select:focus{outline:2px solid #bfdbfe;border-color:#60a5fa}.row{display:grid;grid-template-columns:minmax(0,1fr) 118px;gap:8px}input[type=number]{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums}.to-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}button{padding:10px 12px;border-radius:8px;border:1px solid var(--line);font-weight:700;cursor:pointer}.primary{background:var(--blue);color:white;border-color:var(--blue)}.soft{background:#f1f5f9;color:#334155}.result{padding:18px;border:1px solid #bfdbfe;border-radius:12px;background:linear-gradient(135deg,#eff6ff,#f8fbff);margin-bottom:18px}.result-label{font-size:12px;color:#1d4ed8;font-weight:700}.result-line{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;margin:5px 0}.result-value{font-size:clamp(23px,3vw,34px);font-weight:800;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.result-unit{color:#1d4ed8;font-weight:750}.quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.quick{background:white;color:#334155;text-align:left;padding:10px;border:1px solid var(--line);border-radius:9px}.quick.active{background:var(--bluebg);border-color:#60a5fa;color:#1d4ed8}.quick small{display:block;color:var(--muted);font-size:11px;font-weight:400}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:9px}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:10px 12px;border-bottom:1px solid #e8eef5;text-align:left;white-space:nowrap}th{font-size:11px;background:#f8fafc;color:var(--muted)}td:last-child{text-align:right;font-weight:650}tr:last-child td{border-bottom:0}tr.selected{background:var(--bluebg);color:#1d4ed8}.note{font-size:12px;color:var(--muted);margin-top:14px}.status{min-height:18px;color:#047857;font-size:12px;margin-top:8px}footer{font-size:11px;color:var(--muted);padding:0 2px 8px}@media(max-width:900px){.layout{grid-template-columns:1fr}}@media(max-width:540px){.app{padding:12px}.row,.to-row{grid-template-columns:1fr}.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.body{padding:14px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>工程單位轉換工具</h1>
+      <div class="sub">常用工程物理量快速換算｜輸入數值後即時更新</div>
+    </div>
+    <div class="tag">ENGINEERING UNIT CONVERTER</div>
+  </header>
+  <div class="layout">
+    <aside class="card">
+      <div class="head">
+        <h2>轉換設定</h2><span>⇄</span>
+      </div>
+      <div class="body">
+        <div class="field">
+          <label for="category">物理量類別</label>
+          <select id="category"></select>
+        </div>
+        <div class="field">
+          <label for="value">輸入數值</label>
+          <div class="row">
+            <input id="value" type="number" step="any" value="1">
+            <select id="from" aria-label="來源單位"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="to">轉換為</label>
+          <div class="to-row">
+            <select id="to"></select>
+            <button id="swap" class="soft" type="button">⇄ 對調</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="clear" class="soft" type="button">清除數值</button>
+          <button id="copy" class="primary" type="button">複製結果</button>
+        </div>
+        <div id="status" class="status" aria-live="polite"></div>
+        <div class="note">平方與立方單位以真正上標顯示，例如 m²、m³。溫度換算會使用獨立公式，而非比例換算。</div>
+      </div>
+    </aside>
+    <main>
+      <section class="card">
+        <div class="head">
+          <h2>換算結果</h2>
+          <span id="catLabel" class="muted"></span>
+        </div>
+        <div class="body">
+          <div class="result">
+            <div class="result-label">轉換結果</div>
+            <div class="result-line">
+              <span id="result" class="result-value">—</span>
+              <span id="resultUnit" class="result-unit"></span>
+            </div>
+            <div id="formula" class="muted"></div>
+          </div>
+          <h3 style="font-size:13px;margin:0 0 10px">快速選擇目標單位</h3>
+          <div id="quick" class="quick-grid"></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="head">
+          <h2>此類別所有單位換算</h2><span class="muted">依目前輸入值計算</span>
+        </div>
+        <div class="body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>單位</th>
+                  <th>換算結果</th>
+                </tr>
+              </thead>
+              <tbody id="results"></tbody>
+            </table>
+          </div>
+          <div class="note">數值以標準單位係數換算；顯示結果會依數值大小調整有效位數。</div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <footer>工程單位轉換工具 · 工程估算用途。不同標準、單位定義及四捨五入可能造成極小差異。</footer>
+</div>
+
+<!-- 💡 2. 移除所有內嵌 JavaScript，改為 UI 邏輯 -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const $ = id => document.getElementById(id);
+    const categoryEl = $('category');
+    const fromEl = $('from');
+    const toEl = $('to');
+    const valueEl = $('value');
+    const resultEl = $('result');
+    const resultUnitEl = $('resultUnit');
+    const formulaEl = $('formula');
+    const catLabelEl = $('catLabel');
+    const quickGridEl = $('quick');
+    const resultsTbodyEl = $('results');
+
+    function populateCategories() {
+        const categories = UnitConverter.getCategories();
+        categoryEl.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function populateUnits() {
+        const category = categoryEl.value;
+        const units = UnitConverter.getUnits(category);
+        const currentFrom = fromEl.value;
+        const currentTo = toEl.value;
+
+        fromEl.innerHTML = '';
+        toEl.innerHTML = '';
+        units.forEach(unit => {
+            fromEl.add(new Option(unit, unit));
+            toEl.add(new Option(unit, unit));
+        });
+
+        fromEl.value = units.includes(currentFrom) ? currentFrom : units[0];
+        toEl.value = units.includes(currentTo) && currentTo !== fromEl.value ? currentTo : units[Math.min(1, units.length - 1)];
+
+        catLabelEl.textContent = category;
+        render();
+    }
+
+    function render() {
+        try {
+            const category = categoryEl.value;
+            const fromUnit = fromEl.value;
+            const toUnit = toEl.value;
+            const rawValue = valueEl.value;
+            const value = parseFloat(rawValue);
+
+            if (rawValue.trim() === '' || !Number.isFinite(value)) {
+                throw new Error('請輸入有效數值');
+            }
+
+            const resultValue = UnitConverter.convert(value, fromUnit, toUnit, category);
+
+            resultEl.textContent = UnitConverter.format(resultValue);
+            resultUnitEl.textContent = toUnit;
+            formulaEl.textContent = `${UnitConverter.format(value)} ${fromUnit} = ${UnitConverter.format(resultValue)} ${toUnit}`;
+            $('status').textContent = '';
+            
+            updateQuickSelect();
+            updateResultsTable();
+
+        } catch (error) {
+            resultEl.textContent = '—';
+            resultUnitEl.textContent = '';
+            formulaEl.textContent = error.message;
+            quickGridEl.innerHTML = '';
+            resultsTbodyEl.innerHTML = '';
+        }
+    }
+
+    function updateQuickSelect() {
+        const category = categoryEl.value;
+        const toUnit = toEl.value;
+        const units = UnitConverter.getUnits(category);
+        quickGridEl.innerHTML = '';
+        
+        units.forEach(unit => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'quick' + (unit === toUnit ? ' active' : '');
+            btn.innerHTML = `${unit}<small>設為目標單位</small>`;
+            btn.onclick = () => { toEl.value = unit; render(); };
+            quickGridEl.appendChild(btn);
+        });
+    }
+
+    function updateResultsTable() {
+        const category = categoryEl.value;
+        const fromUnit = fromEl.value;
+        const toUnit = toEl.value;
+        const value = parseFloat(valueEl.value);
+        const units = UnitConverter.getUnits(category);
+        resultsTbodyEl.innerHTML = '';
+
+        if (!Number.isFinite(value)) return;
+
+        units.forEach(unit => {
+            const tr = document.createElement('tr');
+            if (unit === toUnit) tr.className = 'selected';
+            const convertedValue = UnitConverter.convert(value, fromUnit, unit, category);
+            tr.innerHTML = `<td>${unit}</td><td>${UnitConverter.format(convertedValue)}</td>`;
+            resultsTbodyEl.appendChild(tr);
+        });
+    }
+
+    function swapUnits() {
+        const temp = fromEl.value;
+        fromEl.value = toEl.value;
+        toEl.value = temp;
+        render();
+    }
+
+    categoryEl.addEventListener('change', populateUnits);
+    valueEl.addEventListener('input', render);
+    fromEl.addEventListener('change', render);
+    toEl.addEventListener('change', render);
+    $('swap').addEventListener('click', swapUnits);
+    $('clear').addEventListener('click', () => {
+        valueEl.value = '';
+        render();
+        valueEl.focus();
+    });
+    $('copy').addEventListener('click', async () => {
+        const statusEl = $('status');
+        try {
+            await navigator.clipboard.writeText(resultEl.textContent);
+            statusEl.textContent = '已複製結果數值！';
+        } catch(e) {
+            statusEl.textContent = '複製失敗。';
+        }
+    });
+
+    populateCategories();
+    populateUnits();
+});
+</script>
+</body>
+</html>
