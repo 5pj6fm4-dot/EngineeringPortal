@@ -1,6 +1,0 @@
-
-.git/
-.github/
-worker.js
-wrangler.jsonc
-.assetsignore
