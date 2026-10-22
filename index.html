@@ -369,59 +369,57 @@
       return 1 + Math.round(((d.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
     }
 
-    function getWeeklyPassword() {
-      var yr = String(new Date().getFullYear()).slice(-2);
-      var wk = getISOWeek();
-      var wkStr = wk < 10 ? '0' + wk : String(wk);
-      var raw = yr + wkStr + "5pj6fm4";
-      var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-      var res = "";
-      for (var i = 1; i <= 6; i++) res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
-      return res;
-    }
+function getQuarterPassword() {
+  var d = new Date();
+  var yr = String(d.getFullYear()).slice(-2);
+  var quarter = Math.floor(d.getMonth() / 3) + 1; // 1 ~ 4 季度
+  var raw = yr + "Q" + quarter + "taigene5pj6"; // 與 Worker 一致的鹽值
+  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  var res = "";
+  for (var i = 1; i <= 6; i++) {
+    res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
+  }
+  return res;
+}
 
-    function verifyPwd() {
-      var input = document.getElementById('userPwd').value.trim();
-      if (input === getWeeklyPassword()) {
-        sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
-        document.getElementById('lockOverlay').style.display = 'none';
-        var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
-        if (firstItem) loadModule('modules/sim1_basic.html', firstItem);
-      } else {
-        alert('授權碼錯誤，請重新輸入。');
-        document.getElementById('userPwd').value = '';
-        document.getElementById('userPwd').focus();
-      }
-    }
+function verifyPwd() {
+  var input = document.getElementById('userPwd').value.trim();
+  var correctPwd = getQuarterPassword();
 
-    function openAdminModal() {
-      document.getElementById('adminModal').style.display = 'flex';
-      document.getElementById('adminPwdInput').value = '';
-      document.getElementById('adminPwdInput').focus();
-    }
+  if (input === correctPwd) {
+    // 寫入 Cookie，有效期設為 1 天 (或自訂)
+    document.cookie = "portal_auth_token=" + correctPwd + "; path=/; max-age=86400; SameSite=Strict";
 
-    function closeAdminModal() {
-      document.getElementById('adminModal').style.display = 'none';
-    }
+    sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
+    document.getElementById('lockOverlay').style.display = 'none';
+    var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
+    if (firstItem) loadModule('modules/sim1_basic.html', firstItem);
+  } else {
+    alert('授權碼錯誤，請重新輸入。');
+    document.getElementById('userPwd').value = '';
+    document.getElementById('userPwd').focus();
+  }
+}
 
-    function submitAdminCheck() {
-      var adminPwd = document.getElementById('adminPwdInput').value.trim();
-      if (adminPwd === "0315") {
-        var pwd = getWeeklyPassword();
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(pwd).then(function () {
-            alert('本週授權碼為：' + pwd + '\n\n授權碼已複製到剪貼簿。');
-          }).catch(function () {
-            alert('本週授權碼為：' + pwd);
-          });
-        } else {
-          alert('本週授權碼為：' + pwd);
-        }
-        closeAdminModal();
-      } else {
-        alert('管理員密碼錯誤。');
-      }
+// 管理員功能：直接驗證管理密碼並產出當前的授權碼
+function submitAdminCheck() {
+  var adminPwd = document.getElementById('adminPwdInput').value.trim();
+  if (adminPwd === "0315") { // 管理密碼
+    var pwd = getQuarterPassword(); // 取得本季授權碼
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(pwd).then(function () {
+        alert('當前 3 個月授權碼為：' + pwd + '\n\n授權碼已複製到剪貼簿。');
+      }).catch(function () {
+        alert('當前 3 個月授權碼為：' + pwd);
+      });
+    } else {
+      alert('當前 3 個月授權碼為：' + pwd);
     }
+    closeAdminModal();
+  } else {
+    alert('管理員密碼錯誤。');
+  }
+}
 
     function loadModule(url, element) {
       document.querySelectorAll('.menu-item').forEach(function (el) { el.classList.remove('active'); });
