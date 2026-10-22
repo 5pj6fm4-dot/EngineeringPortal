@@ -199,7 +199,7 @@
     <div class="pwd-card">
       <div class="brand-mark">DT</div>
       <div class="pwd-title">Design Tools</div>
-      <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本季授權碼以存取工程計算模組</div>
+      <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本週授權碼以存取工程計算模組</div>
       <input type="password" id="userPwd" class="pwd-input" placeholder="輸入 6 位授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
       <button class="btn-login" onclick="verifyPwd()">登入工作區</button>
       <button class="btn-admin" onclick="openAdminModal()" aria-label="管理員設定" title="管理員設定">⚙</button>
@@ -210,7 +210,7 @@
   <div id="adminModal">
     <div class="admin-card">
       <div style="font-weight:750; font-size:16px; margin-bottom:7px; color:#111827;">管理員驗證</div>
-      <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後取得並複製本季授權碼</div>
+      <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後產生並複製本週授權碼</div>
       <input type="password" id="adminPwdInput" class="admin-input" placeholder="輸入管理密碼" onkeydown="if(event.key==='Enter') submitAdminCheck()">
       <div class="admin-actions">
         <button class="btn-confirm" onclick="submitAdminCheck()">確認</button>
@@ -346,233 +346,98 @@
   </div>
 
   <!-- IMPORTANT: This must be placed before the main script block -->
-  
+  <script src="assets/js/project_db.js"></script>
 
   <script>
-// =============================================
-// EngineeringPortal：伺服器端季度授權
-// =============================================
-
-let projectDbLoadPromise = null;
-
-// 統一處理伺服器 JSON 回應，避免空回應造成 JSON 解析錯誤
-async function readApiResponse(response) {
-  const text = await response.text();
-
-  let data = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new Error(
-        `伺服器回應格式錯誤（HTTP ${response.status}）。`
-      );
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      data.error || `伺服器請求失敗（HTTP ${response.status}）。`
-    );
-  }
-
-  return data;
-}
-
-// 登入：由 Worker 在伺服器端驗證季度授權碼
-async function verifyPwd() {
-  const input = document.getElementById('userPwd');
-  const button = document.querySelector('.btn-login');
-  const password = input.value.trim();
-
-  if (!password) {
-    alert('請輸入本季授權碼。');
-    input.focus();
-    return;
-  }
-
-  button.disabled = true;
-  button.textContent = '驗證中…';
-
-  try {
-    const response = await fetch('/api/portal/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      body: JSON.stringify({ password })
-    });
-
-    await readApiResponse(response);
-
-    // 登入狀態由 HttpOnly Cookie 維持，不使用 sessionStorage
-    document.getElementById('lockOverlay').style.display = 'none';
-
-    const firstItem =
-      document.querySelector('.menu-item.active') ||
-      document.querySelector('.menu-item');
-
-    if (firstItem) {
-      loadModule('modules/sim1_basic.html', firstItem);
-    }
-  } catch (error) {
-    alert(error.message || '登入失敗，請稍後再試。');
-    input.value = '';
-    input.focus();
-  } finally {
-    button.disabled = false;
-    button.textContent = '登入工作區';
-  }
-}
-
-// 開啟管理員驗證視窗
-function openAdminModal() {
-  document.getElementById('adminModal').style.display = 'flex';
-  document.getElementById('adminPwdInput').value = '';
-  document.getElementById('adminPwdInput').focus();
-}
-
-// 關閉管理員驗證視窗
-function closeAdminModal() {
-  document.getElementById('adminModal').style.display = 'none';
-}
-
-// 管理員驗證：由 Worker 檢查 PIN 並回傳本季授權碼
-async function submitAdminCheck() {
-  const input = document.getElementById('adminPwdInput');
-  const password = input.value.trim();
-  const button = document.querySelector('.btn-confirm');
-
-  if (!password) {
-    alert('請輸入管理員密碼。');
-    input.focus();
-    return;
-  }
-
-  button.disabled = true;
-  button.textContent = '驗證中…';
-
-  try {
-    const response = await fetch('/api/portal/admin-code', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      body: JSON.stringify({ password })
-    });
-
-    const data = await readApiResponse(response);
-
-    const message =
-      `本季授權碼為：${data.password}\n` +
-      `適用期間：${data.year} 年第 ${data.quarter} 季`;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        await navigator.clipboard.writeText(data.password);
-        alert(message + '\n\n授權碼已複製到剪貼簿。');
-      } catch {
-        alert(message);
+    // --- Standard Login & Navigation Logic (No changes) ---
+    function crc32(s) {
+      var c, t = [];
+      for (var n = 0; n < 256; n++) {
+        c = n;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c;
       }
-    } else {
-      alert(message);
+      var crc = -1;
+      for (var i = 0; i < s.length; i++) crc = (crc >>> 8) ^ t[(crc ^ s.charCodeAt(i)) & 0xFF];
+      return (crc ^ (-1)) >>> 0;
     }
 
-    closeAdminModal();
-  } catch (error) {
-    alert(error.message || '管理員驗證失敗。');
-    input.select();
-  } finally {
-    button.disabled = false;
-    button.textContent = '確認';
-  }
-}
+    function getISOWeek() {
+      var d = new Date(); d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+      var w1 = new Date(d.getFullYear(), 0, 4);
+      return 1 + Math.round(((d.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+    }
 
-// 導覽：真正的檔案存取權限由 Worker 控制
-function loadModule(url, element) {
-  // 僅允許從工程模組目錄載入頁面
-  if (
-    typeof url !== 'string' ||
-    !/^modules\/[a-zA-Z0-9_-]+\.html$/.test(url)
-  ) {
-    alert('不允許載入此路徑。');
-    return;
-  }
+    function getWeeklyPassword() {
+      var yr = String(new Date().getFullYear()).slice(-2);
+      var wk = getISOWeek();
+      var wkStr = wk < 10 ? '0' + wk : String(wk);
+      var raw = yr + wkStr + "5pj6fm4";
+      var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+      var res = "";
+      for (var i = 1; i <= 6; i++) res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
+      return res;
+    }
 
-  document.querySelectorAll('.menu-item').forEach(function (el) {
-    el.classList.remove('active');
-  });
-
-  if (element) element.classList.add('active');
-
-  document.getElementById('workFrame').src = url;
-}
-
-// 登入後才載入受 Worker 保護的資料庫程式
-function ensureProjectDbLoaded() {
-  if (typeof getProjectData === 'function' &&
-      typeof saveProjectData === 'function') {
-    return Promise.resolve();
-  }
-
-  if (projectDbLoadPromise) {
-    return projectDbLoadPromise;
-  }
-
-  projectDbLoadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-
-    script.src = '/assets/js/project_db.js';
-    script.async = true;
-
-    script.onload = () => {
-      if (
-        typeof getProjectData === 'function' &&
-        typeof saveProjectData === 'function'
-      ) {
-        resolve();
+    function verifyPwd() {
+      var input = document.getElementById('userPwd').value.trim();
+      if (input === getWeeklyPassword()) {
+        sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
+        document.getElementById('lockOverlay').style.display = 'none';
+        var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
+        if (firstItem) loadModule('modules/sim1_basic.html', firstItem);
       } else {
-        projectDbLoadPromise = null;
-        script.remove();
-        reject(new Error(
-          '資料庫程式載入成功，但找不到必要的資料庫函式。'
-        ));
+        alert('授權碼錯誤，請重新輸入。');
+        document.getElementById('userPwd').value = '';
+        document.getElementById('userPwd').focus();
       }
-    };
+    }
 
-    script.onerror = () => {
-      projectDbLoadPromise = null;
-      script.remove();
-      reject(new Error(
-        '無法載入客戶／機種資料庫程式，請確認已登入及部署設定。'
-      ));
-    };
+    function openAdminModal() {
+      document.getElementById('adminModal').style.display = 'flex';
+      document.getElementById('adminPwdInput').value = '';
+      document.getElementById('adminPwdInput').focus();
+    }
 
-    document.head.appendChild(script);
-  });
+    function closeAdminModal() {
+      document.getElementById('adminModal').style.display = 'none';
+    }
 
-  return projectDbLoadPromise;
-}
+    function submitAdminCheck() {
+      var adminPwd = document.getElementById('adminPwdInput').value.trim();
+      if (adminPwd === "0315") {
+        var pwd = getWeeklyPassword();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(pwd).then(function () {
+            alert('本週授權碼為：' + pwd + '\n\n授權碼已複製到剪貼簿。');
+          }).catch(function () {
+            alert('本週授權碼為：' + pwd);
+          });
+        } else {
+          alert('本週授權碼為：' + pwd);
+        }
+        closeAdminModal();
+      } else {
+        alert('管理員密碼錯誤。');
+      }
+    }
+
+    function loadModule(url, element) {
+      document.querySelectorAll('.menu-item').forEach(function (el) { el.classList.remove('active'); });
+      if (element) element.classList.add('active');
+      document.getElementById('workFrame').src = url;
+    }
+
     /* ----------------------------------------------- */
     /* --- NEW: Projects DB Modal Management Logic --- */
     /* ----------------------------------------------- */
-async function openProjectsDbModal() {
-    try {
-        await ensureProjectDbLoaded();
-
+    function openProjectsDbModal() {
         renderCustomersTable();
         populateModelCustomerSelect();
         renderModelsTable();
-
         document.getElementById('projectsDbModal').style.display = 'flex';
-    } catch (error) {
-        alert(error.message || '無法開啟客戶／機種資料庫。');
     }
-}
 
     function closeProjectsDbModal() {
         document.getElementById('projectsDbModal').style.display = 'none';
