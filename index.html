@@ -8,70 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/portal-style.css">
-  <style>
-    /* 新增管理員驗證 Modal 相關樣式 */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(15, 23, 42, 0.7);
-      backdrop-filter: blur(4px);
-      z-index: 10000;
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
-      background: #ffffff;
-      padding: 30px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 400px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      text-align: center;
-    }
-    .modal-content h3 {
-      margin-top: 0;
-      color: #1e293b;
-      font-size: 1.25rem;
-      margin-bottom: 15px;
-    }
-    .modal-content input[type="password"] {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 20px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      font-size: 1rem;
-      box-sizing: border-box;
-    }
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-    }
-    .modal-btn {
-      padding: 8px 20px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .modal-btn-confirm {
-      background: #2563eb;
-      color: white;
-    }
-    .modal-btn-confirm:hover {
-      background: #1d4ed8;
-    }
-    .modal-btn-cancel {
-      background: #e2e8f0;
-      color: #475569;
-    }
-    .modal-btn-cancel:hover {
-      background: #cbd5e1;
-    }
-  </style>
 </head>
 <body>
 
@@ -85,10 +21,10 @@
       <p class="lock-subtitle">Taigene R&D - Engineering Portal</p>
       
       <div class="input-group">
-        <label for="userPwd">請輸入 3 個月定期授權密碼</label>
+        <label for="userPwd">請輸入定期授權密碼</label>
         <div class="password-input-wrapper">
           <i class="fa-solid fa-key input-field-icon"></i>
-          <input type="password" id="userPwd" placeholder="輸入當季授權碼..." onkeydown="if(event.key==='Enter') verifyPwd()">
+          <input type="password" id="userPwd" placeholder="輸入授權碼..." onkeydown="if(event.key==='Enter') verifyPwd()">
         </div>
       </div>
       
@@ -109,10 +45,18 @@
   <!-- 管理員密碼驗證彈出視窗 (Modal) -->
   <div id="adminModal" class="modal-overlay" onclick="if(event.target===this) closeAdminModal()">
     <div class="modal-content">
-      <h3><i class="fa-solid fa-shield-halved" style="color: #2563eb;"></i> 管理員安全驗證</h3>
-      <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">請輸入管理員密碼以獲取當季的授權碼：</p>
-      <input type="password" id="adminPwdInput" placeholder="請輸入管理員密碼..." onkeydown="if(event.key==='Enter') submitAdminCheck()">
-      <div class="modal-actions">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-shield-halved"></i> 管理員安全驗證</h3>
+        <span class="close-btn" onclick="closeAdminModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p>請輸入管理員密碼以獲取當期授權碼：</p>
+        <div class="password-input-wrapper">
+          <i class="fa-solid fa-lock input-field-icon"></i>
+          <input type="password" id="adminPwdInput" placeholder="請輸入管理員密碼..." onkeydown="if(event.key==='Enter') submitAdminCheck()">
+        </div>
+      </div>
+      <div class="modal-footer">
         <button class="modal-btn modal-btn-cancel" onclick="closeAdminModal()">取消</button>
         <button class="modal-btn modal-btn-confirm" onclick="submitAdminCheck()">確認驗證</button>
       </div>
@@ -199,7 +143,7 @@
 
   <!-- JavaScript 邏輯控制 -->
   <script>
-    // 1. CRC32 演算法實作 (用於本地端動態生成與驗證密碼)
+    // 1. 保留您原本的 CRC32 演算法
     function crc32(s) {
       var c, t = [];
       for (var n = 0; n < 256; n++) {
@@ -216,13 +160,13 @@
       return (crc ^ (-1)) >>> 0;
     }
 
-    // 2. 獲取每 3 個月 (按季度 Q1~Q4) 自動變更的授權碼
+    // 2. 每 3 個月 (按季度 Q1~Q4) 自動變更的授權碼演算法
     function getQuarterPassword() {
       var d = new Date();
       var yr = String(d.getFullYear()).slice(-2); // 取得年份後兩位，如 "26"
       var quarter = Math.floor(d.getMonth() / 3) + 1; // 1, 2, 3, 4 季度
       
-      // 混淆鹽值 (Taigene 特用混淆，必須與 _middleware.js 完美保持一致)
+      // 混淆鹽值 (與邊緣端 _middleware.js 保持一致)
       var raw = yr + "Q" + quarter + "taigene5pj6"; 
       var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
       var res = "";
@@ -232,14 +176,14 @@
       return res;
     }
 
-    // 3. 驗證使用者輸入的當季授權碼
+    // 3. 驗證授權密碼
     function verifyPwd() {
       var input = document.getElementById('userPwd').value.trim();
-      var correctPwd = getQuarterPassword();
+      var correctPwd = getQuarterPassword(); // 取得本季最新的自動更換授權碼
       
       if (input === correctPwd) {
         // 【核心安全性修正】: 將正確授權碼寫入 Cookie，效期 1 天 (86400秒)
-        // 如此一來，後續 iframe 請求 modules/*.html 時，瀏覽器會自動附加 Cookie，Cloudflare 便能完美驗證放行
+        // 如此一來，後續 iframe 請求 modules/*.html 時，瀏覽器會自動附加 Cookie，Cloudflare 邊緣驗證便能放行
         document.cookie = "portal_auth_token=" + correctPwd + "; path=/; max-age=86400; SameSite=Strict; Secure";
         
         sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
@@ -260,7 +204,7 @@
     // 4. 安全鎖定功能 (登出並清除憑證與 Cookie)
     function lockPortal() {
       sessionStorage.removeItem('taigene_portal_auth');
-      // 清除驗證 Cookie (將效期設為過去的時間)
+      // 清除驗證 Cookie
       document.cookie = "portal_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Strict; Secure";
       
       document.getElementById('userPwd').value = '';
@@ -288,10 +232,6 @@
       });
       element.classList.add('active');
 
-      // 更新麵包屑與導覽標題
-      var groupName = element.closest('.menu').querySelector('.menu-group') ? 
-                      element.previousElementSibling : null;
-      
       // 尋找當前節點所屬的群組名稱
       var parentText = "設計與計算工具";
       var prev = element.previousElementSibling;
@@ -310,36 +250,39 @@
       document.getElementById('workFrame').src = url;
     }
 
-    // 6. 管理員驗證與授權碼獲取功能
+    // 6. 管理員功能彈出視窗控制
     function openAdminModal() {
       document.getElementById('adminModal').style.display = 'flex';
       document.getElementById('adminPwdInput').value = '';
       document.getElementById('adminPwdInput').focus();
     }
 
+    // 關閉管理員彈窗
     function closeAdminModal() {
       document.getElementById('adminModal').style.display = 'none';
     }
 
+    // 驗證管理員密碼並生成當期授權密碼
     function submitAdminCheck() {
       var adminPwd = document.getElementById('adminPwdInput').value.trim();
-      // 此處設定您的管理員認證密碼 (可自由更改)
+      
+      // 管理員密碼，維持您原本的預設值 "0315"
       if (adminPwd === "0315") { 
-        var currentAuthCode = getQuarterPassword(); // 計算當期(3個月更新一次)的正確授權碼
+        var pwd = getQuarterPassword(); // 動態計算當期 3 個月授權碼
         
-        // 嘗試自動複製授權碼至剪貼簿
+        // 嘗試將當期授權密碼自動複製到剪貼簿
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(currentAuthCode).then(function () {
-            alert('【管理員驗證成功】\n\n當前的 3 個月季授權碼為： ' + currentAuthCode + '\n\n授權碼已成功複製至剪貼簿！');
+          navigator.clipboard.writeText(pwd).then(function () {
+            alert('【管理員驗證成功】\n\n當前 3 個月季授權碼為： ' + pwd + '\n\n最新授權碼已自動複製至您的剪貼簿！');
           }).catch(function () {
-            alert('【管理員驗證成功】\n\n當前的 3 個月季授權碼為： ' + currentAuthCode);
+            alert('【管理員驗證成功】\n\n當前 3 個月季授權碼為： ' + pwd);
           });
         } else {
-          alert('【管理員驗證成功】\n\n當前的 3 個月季授權碼為： ' + currentAuthCode);
+          alert('【管理員驗證成功】\n\n當前 3 個月季授權碼為： ' + pwd);
         }
         closeAdminModal();
       } else {
-        alert('管理員密碼錯誤，拒絕存取。');
+        alert('管理員密碼錯誤，驗證失敗。');
         document.getElementById('adminPwdInput').value = '';
         document.getElementById('adminPwdInput').focus();
       }
