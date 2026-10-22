@@ -11,7 +11,7 @@
 </head>
 <body>
 
-  <!-- 鎖定遮罩層 (密碼驗證) -->
+  <!-- 鎖定遮罩層 -->
   <div id="lockOverlay" class="lock-overlay">
     <div class="lock-card">
       <div class="lock-icon">
@@ -143,7 +143,7 @@
 
   <!-- JavaScript 邏輯控制 -->
   <script>
-    // 1. 保留您原本的 CRC32 演算法
+    // 1. 保留原本的 CRC32 演算法
     function crc32(s) {
       var c, t = [];
       for (var n = 0; n < 256; n++) {
@@ -160,13 +160,13 @@
       return (crc ^ (-1)) >>> 0;
     }
 
-    // 2. 每 3 個月 (按季度 Q1~Q4) 自動變更的授權碼演算法
+    // 2. 核心修改：取得每 3 個月 (按季度 Q1~Q4) 自動更新的授權碼
     function getQuarterPassword() {
       var d = new Date();
-      var yr = String(d.getFullYear()).slice(-2); // 取得年份後兩位，如 "26"
+      var yr = String(d.getFullYear()).slice(-2); // 例如 2026 年取得 "26"
       var quarter = Math.floor(d.getMonth() / 3) + 1; // 1, 2, 3, 4 季度
       
-      // 混淆鹽值 (與邊緣端 _middleware.js 保持一致)
+      // 混淆鹽值 (與邊緣端 _middleware.js 完美保持一致)
       var raw = yr + "Q" + quarter + "taigene5pj6"; 
       var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
       var res = "";
@@ -176,14 +176,14 @@
       return res;
     }
 
-    // 3. 驗證授權密碼
+    // 3. 核心修改：驗證授權密碼
     function verifyPwd() {
       var input = document.getElementById('userPwd').value.trim();
       var correctPwd = getQuarterPassword(); // 取得本季最新的自動更換授權碼
       
       if (input === correctPwd) {
-        // 【核心安全性修正】: 將正確授權碼寫入 Cookie，效期 1 天 (86400秒)
-        // 如此一來，後續 iframe 請求 modules/*.html 時，瀏覽器會自動附加 Cookie，Cloudflare 邊緣驗證便能放行
+        // 【防 F12 關鍵】：登入成功時將授權碼寫入 Cookie，效期 1 天 (86400秒)
+        // 這樣 iframe 載入 modules/*.html 時，Cloudflare 的 Functions 就能正確驗證並放行
         document.cookie = "portal_auth_token=" + correctPwd + "; path=/; max-age=86400; SameSite=Strict; Secure";
         
         sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
@@ -201,7 +201,7 @@
       }
     }
 
-    // 4. 安全鎖定功能 (登出並清除憑證與 Cookie)
+    // 4. 安全鎖定功能 (清除憑證與安全 Cookie)
     function lockPortal() {
       sessionStorage.removeItem('taigene_portal_auth');
       // 清除驗證 Cookie
@@ -215,7 +215,7 @@
 
     // 5. 模組動態切換載入
     function loadModule(url, element) {
-      // 安全機制：載入前檢查 sessionStorage 與 Cookie 狀態
+      // 載入前檢查 sessionStorage 與 Cookie 狀態
       var auth = sessionStorage.getItem('taigene_portal_auth');
       var hasCookie = document.cookie.split(';').some(function(item) {
         return item.trim().startsWith('portal_auth_token=');
@@ -250,35 +250,34 @@
       document.getElementById('workFrame').src = url;
     }
 
-    // 6. 管理員功能彈出視窗控制
+    // 6. 管理員彈出視窗控制 (100% 保留您原本的 DOM 操作)
     function openAdminModal() {
       document.getElementById('adminModal').style.display = 'flex';
       document.getElementById('adminPwdInput').value = '';
       document.getElementById('adminPwdInput').focus();
     }
 
-    // 關閉管理員彈窗
     function closeAdminModal() {
       document.getElementById('adminModal').style.display = 'none';
     }
 
-    // 驗證管理員密碼並生成當期授權密碼
+    // 核心修改：驗證管理員密碼並動態生成本季授權密碼
     function submitAdminCheck() {
       var adminPwd = document.getElementById('adminPwdInput').value.trim();
       
-      // 管理員密碼，維持您原本的預設值 "0315"
+      // 這裡維持您原本設定的管理員密碼 "0315"
       if (adminPwd === "0315") { 
         var pwd = getQuarterPassword(); // 動態計算當期 3 個月授權碼
         
         // 嘗試將當期授權密碼自動複製到剪貼簿
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(pwd).then(function () {
-            alert('【管理員驗證成功】\n\n當前 3 個月季授權碼為： ' + pwd + '\n\n最新授權碼已自動複製至您的剪貼簿！');
+            alert('【管理員驗證成功】\n\n當前 3 個月授權碼為： ' + pwd + '\n\n授權碼已成功複製至您的剪貼簿！');
           }).catch(function () {
-            alert('【管理員驗證成功】\n\n當前 3 個月季授權碼為： ' + pwd);
+            alert('【管理員驗證成功】\n\n當前 3 個月授權碼為： ' + pwd);
           });
         } else {
-          alert('【管理員驗證成功】\n\n當前 3 個月季授權碼為： ' + pwd);
+          alert('【管理員驗證成功】\n\n當前 3 個月授權碼為： ' + pwd);
         }
         closeAdminModal();
       } else {
@@ -299,7 +298,8 @@
         document.getElementById('lockOverlay').style.display = 'none';
         var activeItem = document.querySelector('.menu-item.active');
         if (activeItem) {
-          loadModule(activeItem.getAttribute('onclick').match(/'([^']+)'/), activeItem);
+          // 由於 loadModule 參數有變動，我們直接點擊對應節點觸發
+          activeItem.click();
         }
       } else {
         lockPortal();
