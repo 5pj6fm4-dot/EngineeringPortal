@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#111827">
   <title>Design Tools | Engineering Calculation & Design</title>
+  <!-- 引入 CryptoJS 用於前端動態記憶體解密 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <style>
     :root {
       --bg: #f3f6fb;
@@ -112,7 +114,7 @@
     .btn-cancel { background: #e2e8f0; color: #334155; }
     
     /* ---------------------------------- */
-    /* --- NEW: Projects DB Modal CSS --- */
+    /* --- Projects DB Modal CSS --- */
     /* ---------------------------------- */
     #projectsDbModal {
         display: none;
@@ -195,7 +197,6 @@
     <div class="pwd-card">
       <div class="brand-mark">DT</div>
       <div class="pwd-title">Design Tools</div>
-      <!-- 修正為 3 個月定期授權密碼提示 -->
       <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入 3 個月定期授權碼以存取工程計算模組</div>
       <input type="password" id="userPwd" class="pwd-input" placeholder="輸入 6 位授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
       <button class="btn-login" onclick="verifyPwd()">登入工作區</button>
@@ -207,7 +208,6 @@
   <div id="adminModal">
     <div class="admin-card">
       <div style="font-weight:750; font-size:16px; margin-bottom:7px; color:#111827;">管理員驗證</div>
-      <!-- 修正管理員驗證文字 -->
       <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後產生並複製 3 個月定期授權碼</div>
       <input type="password" id="adminPwdInput" class="admin-input" placeholder="輸入管理密碼" onkeydown="if(event.key==='Enter') submitAdminCheck()">
       <div class="admin-actions">
@@ -282,48 +282,49 @@
         </div>
       </div>
 
+      <!-- 更新導覽選單：將檔案名稱改為指向加密後的 .enc 檔 -->
       <nav class="menu-scroll" aria-label="工程工具選單">
         <div class="menu-group">
           <div class="menu-title">軸孔配合與壓入設計</div>
-          <div class="menu-item active" onclick="loadModule('modules/sim1_basic.html', this)">
+          <div class="menu-item active" onclick="loadModule('modules/sim1_basic.enc', this)">
             <span class="menu-icon">🔩</span>
             <span>仿真 1：過盈應力（基礎版）</span>
           </div>
-          <div class="menu-item" onclick="loadModule('modules/sim2_advanced.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/sim2_advanced.enc', this)">
             <span class="menu-icon">🌀</span>
             <span>仿真 2：熱／旋轉分析（高階版）</span>
           </div>
         </div>
         <div class="menu-group">
           <div class="menu-title">公差配合與專用計算</div>
-          <div class="menu-item" onclick="loadModule('modules/tolerance_calc.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/tolerance_calc.enc', this)">
             <span class="menu-icon">📏</span>
             <span>尺寸公差及配合度計算</span>
           </div>
-          <div class="menu-item" onclick="loadModule('modules/centrifugal.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/centrifugal.enc', this)">
             <span class="menu-icon">🌀</span>
             <span>轉子高速離心力計算</span>
           </div>
-          <div class="menu-item" onclick="loadModule('modules/physics_calc.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/physics_calc.enc', this)">
             <span class="menu-icon">⚙️</span>
             <span>物理計算器</span>
           </div>
-          <div class="menu-item" onclick="loadModule('modules/unit_converter.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/unit_converter.enc', this)">
             <span class="menu-icon">🔄</span>
             <span>工程單位轉換工具</span>
           </div>
-          <div class="menu-item" onclick="loadModule('modules/torque_dynamics_calc.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/torque_dynamics_calc.enc', this)">
             <span class="menu-icon">⚡</span>
             <span>轉速與扭矩動力學計算</span>
           </div>
-          <div class="menu-item" onclick="loadModule('modules/tolerance_converter.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/tolerance_converter.enc', this)">
             <span class="menu-icon">🔄</span>
             <span>公差換算小工具</span>
           </div>
         </div>
         <div class="menu-group">
           <div class="menu-title">共用資料庫與規範</div>
-          <div class="menu-item" onclick="loadModule('modules/design_rules.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/design_rules.enc', this)">
             <span class="menu-icon">📐</span>
             <span>設計規範資料庫 (Design Rules)</span>
           </div>
@@ -331,7 +332,7 @@
             <span class="menu-icon">🗂️</span>
             <span>客戶/機種資料庫管理</span>
           </div>
-          <div class="menu-item" onclick="loadModule('modules/materials_db.html', this)">
+          <div class="menu-item" onclick="loadModule('modules/materials_db.enc', this)">
             <span class="menu-icon">📚</span>
             <span>材料資料庫管理</span>
           </div>
@@ -339,15 +340,15 @@
       </nav>
     </aside>
     <main class="main-workspace">
-      <!-- 登入成功前 iframe 預設留空 -->
       <iframe id="workFrame" src="about:blank" title="Design Tools 工作區"></iframe>
     </main>
   </div>
 
-  <!-- IMPORTANT: This must be placed before the main script block -->
   <script src="assets/js/project_db.js"></script>
   <script>
-    // --- 1. CRC32 演算法實作 (無改動) ---
+    // 儲存當下解密所使用的密碼
+    var activeDecryptionKey = "";
+
     function crc32(s) {
       var c, t = [];
       for (var n = 0; n < 256; n++) {
@@ -360,37 +361,32 @@
       return (crc ^ (-1)) >>> 0;
     }
 
-    // --- 2. 升級為 3 個月自動更換（季度）授權碼生成邏輯 ---
+    // 取得 3 個月（季度）更換一次的授權碼
     function getQuarterPassword() {
       var d = new Date();
-      var yr = String(d.getFullYear()).slice(-2); // 取得年份後兩位，如 "26"
-      var quarter = Math.floor(d.getMonth() / 3) + 1; // 1, 2, 3, 4 季度
-      
-      // 混淆鹽值 (與邊緣端 _middleware.js 完美保持一致)
-      var raw = yr + "Q" + quarter + "taigene5pj6"; 
+      var yr = String(d.getFullYear()).slice(-2);
+      var quarter = Math.floor(d.getMonth() / 3) + 1;
+      var raw = yr + "Q" + quarter + "taigene5pj6"; // 自訂混淆鹽值
       var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
       var res = "";
-      for (var i = 1; i <= 6; i++) {
-        res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
-      }
+      for (var i = 1; i <= 6; i++) res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
       return res;
     }
 
-    // --- 3. 升級密碼驗證邏輯：增加 Cookie 寫入，以解除 Cloudflare 攔截 ---
     function verifyPwd() {
       var input = document.getElementById('userPwd').value.trim();
-      var correctPwd = getQuarterPassword(); // 當前季度授權碼
+      var correctPwd = getQuarterPassword();
       
       if (input === correctPwd) {
-        // 寫入安全 Cookie，效期 1 天
-        document.cookie = "portal_auth_token=" + correctPwd + "; path=/; max-age=86400; SameSite=Strict; Secure";
-        
+        // 記錄成功解密密鑰
+        activeDecryptionKey = correctPwd;
         sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
         document.getElementById('lockOverlay').style.display = 'none';
         
         var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
         if (firstItem) {
-          loadModule('modules/sim1_basic.html', firstItem);
+          // 點擊第一個項目，觸發載入
+          firstItem.click();
         }
       } else {
         alert('授權碼錯誤，請重新輸入。');
@@ -399,37 +395,53 @@
       }
     }
 
-    // --- 4. 安全鎖定功能 (清除憑證與安全 Cookie) ---
     function lockPortal() {
       sessionStorage.removeItem('taigene_portal_auth');
-      // 清除驗證 Cookie
-      document.cookie = "portal_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Strict; Secure";
-      
+      activeDecryptionKey = "";
       document.getElementById('userPwd').value = '';
       document.getElementById('workFrame').src = 'about:blank';
       document.getElementById('lockOverlay').style.display = 'flex';
       document.getElementById('userPwd').focus();
     }
 
-    // --- 5. 模組動態切換載入邏輯 ---
+    // --- 核心解密載入邏輯 ---
     function loadModule(url, element) {
-      // 載入前檢查 sessionStorage 與 Cookie 狀態
       var auth = sessionStorage.getItem('taigene_portal_auth');
-      var hasCookie = document.cookie.split(';').some(function(item) {
-        return item.trim().startsWith('portal_auth_token=');
-      });
-
-      if (!auth || !hasCookie) {
+      if (!auth || !activeDecryptionKey) {
         lockPortal();
         return;
       }
 
       document.querySelectorAll('.menu-item').forEach(function (el) { el.classList.remove('active'); });
       if (element) element.classList.add('active');
-      document.getElementById('workFrame').src = url;
+
+      // 1. Fetch 加密後的亂碼檔案 (.enc)
+      fetch(url)
+        .then(response => {
+          if (!response.ok) throw new Error("讀取模組檔案失敗");
+          return response.text();
+        })
+        .then(encryptedText => {
+          // 2. 利用密碼作為密鑰進行 AES 解密
+          var decrypted = CryptoJS.AES.decrypt(encryptedText, activeDecryptionKey).toString(CryptoJS.enc.Utf8);
+          
+          if (!decrypted) {
+            throw new Error("解密失敗，可能授權碼已失效！");
+          }
+
+          // 3. 將解密後的 HTML 轉成記憶體 Blob URL，並塞入 iframe 顯示
+          var blob = new Blob([decrypted], { type: 'text/html' });
+          var blobUrl = URL.createObjectURL(blob);
+          document.getElementById('workFrame').src = blobUrl;
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('workFrame').src = 'about:blank';
+          alert("模組安全載入失敗，請重新登入。");
+          lockPortal();
+        });
     }
 
-    // --- 6. 管理員彈窗控制與驗證 (100% 您原本的 UI，僅將內部計算改為季度) ---
     function openAdminModal() {
       document.getElementById('adminModal').style.display = 'flex';
       document.getElementById('adminPwdInput').value = '';
@@ -443,7 +455,7 @@
     function submitAdminCheck() {
       var adminPwd = document.getElementById('adminPwdInput').value.trim();
       if (adminPwd === "0315") {
-        var pwd = getQuarterPassword(); // 動態取得本季 3 個月授權碼
+        var pwd = getQuarterPassword();
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(pwd).then(function () {
             alert('當前季度授權碼為：' + pwd + '\n\n授權碼已複製到剪貼簿。');
@@ -460,7 +472,7 @@
     }
 
     /* ----------------------------------------------- */
-    /* --- Projects DB Modal Management Logic (不變) --- */
+    /* --- Projects DB Modal Management Logic -------- */
     /* ----------------------------------------------- */
     function openProjectsDbModal() {
         renderCustomersTable();
@@ -528,7 +540,6 @@
         });
     }
 
-    // 新增客戶
     function addCustomer() {
         const input = document.getElementById('txtNewCustomer');
         const name = input.value.trim();
@@ -542,7 +553,6 @@
         populateModelCustomerSelect();
     }
     
-    // 刪除客戶
     function deleteCustomer(customer) {
         if (!confirm(`⚠️ 警告：確定要刪除客戶 [${customer}] 嗎？\n其名下所有機種也將一併被刪除！`)) return;
         const data = getProjectData();
@@ -553,7 +563,6 @@
         renderModelsTable();
     }
     
-    // 新增機種
     function addModel() {
         const customer = document.getElementById('modelCustomerSelect').value;
         if (!customer) return alert("請先從下拉選單選擇要新增機種的客戶！");
@@ -570,7 +579,6 @@
         renderModelsTable();
     }
 
-    // 刪除機種
     function deleteModel(customer, model) {
         if (!confirm(`確定要刪除客戶 [${customer}] 的機種 [${model}] 嗎？`)) return;
         const data = getProjectData();
@@ -581,22 +589,10 @@
         }
     }
 
-    // --- 7. 初始化載入檢查 (加入 Cookie 安全校驗) ---
     window.onload = function() {
-      var auth = sessionStorage.getItem('taigene_portal_auth');
-      var hasCookie = document.cookie.split(';').some(function(item) {
-        return item.trim().startsWith('portal_auth_token=');
-      });
-
-      if (auth && hasCookie) {
-        document.getElementById('lockOverlay').style.display = 'none';
-        var activeItem = document.querySelector('.menu-item.active');
-        if (activeItem) {
-          activeItem.click();
-        }
-      } else {
-        lockPortal();
-      }
+      // 由於純解密版必須在記憶體中持有 activeDecryptionKey 才能解密，
+      // 為了安全，重新整理頁面時一律要求重新輸入密碼，確保記憶體安全。
+      lockPortal();
     };
   </script>
 </body>
