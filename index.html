@@ -3,558 +3,365 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#111827">
-  <title>Design Tools | Engineering Calculation & Design</title>
+  <title>Taigene Engineering Portal - 台駿電機工程入口網</title>
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/portal-style.css">
   <style>
-    :root {
-      --bg: #f3f6fb;
-      --sidebar: #111827;
-      --sidebar-deep: #0b1220;
-      --sidebar-line: #273449;
-      --text: #e5e7eb;
-      --muted: #94a3b8;
-      --accent: #60a5fa;
-      --accent-strong: #2563eb;
-      --hover: #1e293b;
-      --white: #ffffff;
-      --danger: #dc2626;
+    /* 新增管理員驗證 Modal 相關樣式 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
     }
-
-    * { box-sizing: border-box; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
-    button, input, select { font: inherit; }
-
-    /* Login overlay */
-    #lockOverlay {
-      position: fixed; inset: 0; z-index: 99999; display: flex;
-      justify-content: center; align-items: center; padding: 20px;
-      background: radial-gradient(ellipse at top, #1e3a5f 0%, #111827 48%, #080d17 100%);
-    }
-    .pwd-card {
-      width: min(390px, 100%); padding: 34px 32px 30px; position: relative;
-      border: 1px solid rgba(148, 163, 184, .22); border-radius: 18px;
-      background: rgba(255,255,255,.98); box-shadow: 0 28px 70px rgba(0,0,0,.32);
+    .modal-content {
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       text-align: center;
     }
-    .brand-mark {
-      width: 48px; height: 48px; margin: 0 auto 18px; display: grid; place-items: center;
-      border-radius: 14px; color: white; font-size: 20px; font-weight: 800; letter-spacing: -1px;
-      background: linear-gradient(145deg, #60a5fa, #2563eb);
-      box-shadow: 0 8px 20px rgba(37,99,235,.25);
+    .modal-content h3 {
+      margin-top: 0;
+      color: #1e293b;
+      font-size: 1.25rem;
+      margin-bottom: 15px;
     }
-    .pwd-title { font-size: 24px; font-weight: 750; letter-spacing: -.5px; color: #111827; margin-bottom: 7px; }
-    .pwd-subtitle { font-size: 12px; line-height: 1.6; color: #64748b; }
-    .pwd-input {
-      width: 100%; padding: 12px 14px; font-size: 16px; color: #0f172a;
-      border: 1px solid #cbd5e1; border-radius: 9px; margin: 22px 0 12px;
-      text-align: center; letter-spacing: 3px; outline: none; background: #f8fafc;
-      transition: border-color .2s, box-shadow .2s;
+    .modal-content input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
     }
-    .pwd-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.14); background: white; }
-    .btn-login {
-      width: 100%; padding: 12px; background: var(--accent-strong); color: white; font-weight: 650;
-      border: none; border-radius: 9px; cursor: pointer; transition: background .2s, transform .2s;
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
     }
-    .btn-login:hover { background: #1d4ed8; }
-    .btn-login:active { transform: translateY(1px); }
-    .btn-admin {
-      position: absolute; bottom: 12px; right: 12px; width: 30px; height: 30px;
-      display: grid; place-items: center; background: transparent; border: none;
-      border-radius: 7px; cursor: pointer; font-size: 16px; color: #94a3b8;
+    .modal-btn {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
     }
-    .btn-admin:hover { color: #475569; background: #f1f5f9; }
-
-    /* Main layout */
-    .portal-container { display: flex; width: 100%; height: 100%; }
-    .sidebar {
-      width: 270px; background: var(--sidebar); color: var(--text); display: flex;
-      flex-direction: column; flex-shrink: 0; border-right: 1px solid #0b1220;
+    .modal-btn-confirm {
+      background: #2563eb;
+      color: white;
     }
-    .sidebar-header {
-      padding: 23px 20px 21px; background: linear-gradient(180deg, #151f30, var(--sidebar-deep));
-      border-bottom: 1px solid var(--sidebar-line);
+    .modal-btn-confirm:hover {
+      background: #1d4ed8;
     }
-    .brand-row { display: flex; align-items: center; gap: 11px; }
-    .brand-small-mark {
-      width: 35px; height: 35px; flex: 0 0 35px; display: grid; place-items: center;
-      border-radius: 10px; color: white; font-size: 15px; font-weight: 800; letter-spacing: -1px;
-      background: linear-gradient(145deg, #60a5fa, #2563eb);
+    .modal-btn-cancel {
+      background: #e2e8f0;
+      color: #475569;
     }
-    .sidebar-header h2 { margin: 0; font-size: 19px; line-height: 1.2; color: #f8fafc; font-weight: 750; letter-spacing: -.35px; }
-    .sidebar-header p { margin: 6px 0 0; font-size: 10px; line-height: 1.5; color: var(--muted); letter-spacing: .35px; }
-    .menu-scroll { flex: 1; overflow-y: auto; padding: 8px 0 16px; }
-    .menu-scroll::-webkit-scrollbar { width: 5px; }
-    .menu-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-    .menu-group { padding: 13px 0 12px; border-bottom: 1px solid rgba(71,85,105,.35); }
-    .menu-title {
-      padding: 4px 18px 9px; font-size: 10px; text-transform: uppercase;
-      color: #7f91aa; font-weight: 750; letter-spacing: 1.1px;
-    }
-    .menu-item {
-      position: relative; margin: 2px 9px; padding: 11px 12px; cursor: pointer;
-      display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.45;
-      color: #cbd5e1; border-radius: 8px; transition: background .18s, color .18s;
-    }
-    .menu-item:hover { background: rgba(148,163,184,.1); color: white; }
-    .menu-item.active { background: #23344d; color: white; box-shadow: inset 3px 0 0 var(--accent); }
-    .menu-item .menu-icon { width: 20px; flex: 0 0 20px; text-align: center; font-size: 14px; }
-    .main-workspace { flex: 1; min-width: 0; height: 100%; background: var(--bg); position: relative; }
-    iframe { display: block; width: 100%; height: 100%; border: none; background: var(--bg); }
-
-    /* Admin verification */
-    #adminModal {
-      display: none; position: fixed; inset: 0; width: 100%; height: 100%;
-      background: rgba(2,6,23,.64); backdrop-filter: blur(3px); z-index: 100000;
-      justify-content: center; align-items: center; padding: 20px;
-    }
-    .admin-card { background: white; border: 1px solid #e2e8f0; border-radius: 13px; padding: 25px; width: min(340px, 100%); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
-    .admin-input { width: 100%; padding: 10px 12px; margin: 14px 0; border: 1px solid #cbd5e1; border-radius: 7px; outline: none; }
-    .admin-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
-    .admin-actions { display: flex; gap: 8px; justify-content: center; }
-    .admin-actions button { padding: 8px 15px; border: none; border-radius: 7px; font-weight: 650; cursor: pointer; }
-    .btn-confirm { background: #2563eb; color: white; }
-    .btn-cancel { background: #e2e8f0; color: #334155; }
-    
-    /* ---------------------------------- */
-    /* --- NEW: Projects DB Modal CSS --- */
-    /* ---------------------------------- */
-    #projectsDbModal {
-        display: none;
-        position: fixed;
-        inset: 0;
-        z-index: 10000;
-        background-color: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(4px);
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-    }
-    .projects-db-card {
-        background: var(--bg);
-        width: min(800px, 100%);
-        max-height: 90vh;
-        border-radius: 14px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        display: flex;
-        flex-direction: column;
-        color: #1e293b;
-    }
-    .projects-db-header {
-        padding: 16px 20px;
-        border-bottom: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .projects-db-header h2 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 700;
-        color: var(--sidebar);
-    }
-    .btn-close-modal {
-        background: transparent; border: none; font-size: 24px;
-        cursor: pointer; color: #64748b; line-height: 1; padding: 4px;
-    }
-    .projects-db-body {
-        padding: 20px;
-        overflow-y: auto;
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-    }
-    .db-panel { background: var(--white); border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
-    .db-panel h3 { margin: 0 0 15px; font-size: 15px; font-weight: 600; color: var(--accent-strong); }
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 5px; }
-    .form-control { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
-    .form-control:focus { outline: none; border-color: var(--accent-strong); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15); }
-    .btn-db { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background .2s; }
-    .btn-db.primary { background: var(--accent-strong); color: white; }
-    .btn-db.primary:hover { background: #1d4ed8; }
-    .btn-db.danger { background: var(--danger); color: white; }
-    .btn-db.danger:hover { background: #b91c1c; }
-    .db-table-wrap { max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; }
-    .db-table { width: 100%; border-collapse: collapse; }
-    .db-table th, .db-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: left; }
-    .db-table th { background: #f8fafc; position: sticky; top: 0; }
-    .db-table tr:last-child td { border-bottom: none; }
-    .action-cell { display: flex; gap: 6px; justify-content: flex-end; }
-    .action-cell button { font-size: 11px; padding: 4px 8px; }
-
-    @media (max-width: 768px) {
-      .projects-db-body { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 680px) {
-      .sidebar { width: 220px; }
-      .sidebar-header { padding: 18px 14px; }
-      .sidebar-header h2 { font-size: 17px; }
-      .menu-item { font-size: 11px; padding: 10px 8px; }
+    .modal-btn-cancel:hover {
+      background: #cbd5e1;
     }
   </style>
 </head>
 <body>
-  <!-- Login overlay -->
-  <div id="lockOverlay">
-    <div class="pwd-card">
-      <div class="brand-mark">DT</div>
-      <div class="pwd-title">Design Tools</div>
-      <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本週授權碼以存取工程計算模組</div>
-      <input type="password" id="userPwd" class="pwd-input" placeholder="輸入 6 位授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
-      <button class="btn-login" onclick="verifyPwd()">登入工作區</button>
-      <button class="btn-admin" onclick="openAdminModal()" aria-label="管理員設定" title="管理員設定">⚙</button>
-    </div>
-  </div>
 
-  <!-- Admin verification -->
-  <div id="adminModal">
-    <div class="admin-card">
-      <div style="font-weight:750; font-size:16px; margin-bottom:7px; color:#111827;">管理員驗證</div>
-      <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後產生並複製本週授權碼</div>
-      <input type="password" id="adminPwdInput" class="admin-input" placeholder="輸入管理密碼" onkeydown="if(event.key==='Enter') submitAdminCheck()">
-      <div class="admin-actions">
-        <button class="btn-confirm" onclick="submitAdminCheck()">確認</button>
-        <button class="btn-cancel" onclick="closeAdminModal()">取消</button>
+  <!-- 鎖定遮罩層 (密碼驗證) -->
+  <div id="lockOverlay" class="lock-overlay">
+    <div class="lock-card">
+      <div class="lock-icon">
+        <i class="fa-solid fa-user-shield"></i>
+      </div>
+      <h2>台駿電機研發處</h2>
+      <p class="lock-subtitle">Taigene R&D - Engineering Portal</p>
+      
+      <div class="input-group">
+        <label for="userPwd">請輸入 3 個月定期授權密碼</label>
+        <div class="password-input-wrapper">
+          <i class="fa-solid fa-key input-field-icon"></i>
+          <input type="password" id="userPwd" placeholder="輸入當季授權碼..." onkeydown="if(event.key==='Enter') verifyPwd()">
+        </div>
+      </div>
+      
+      <button class="btn-unlock" onclick="verifyPwd()">
+        <i class="fa-solid fa-unlock"></i> 驗證並解鎖安全門戶
+      </button>
+
+      <div class="lock-footer-links">
+        <a href="#" onclick="openAdminModal()"><i class="fa-solid fa-lock"></i> 系統管理員驗證</a>
+      </div>
+
+      <div class="lock-footer">
+        <p>© 2026 台駿電機工業股份有限公司. 版權所有</p>
       </div>
     </div>
   </div>
-  
-  <!-- ============================================== -->
-  <!-- === NEW: Projects DB Management Modal ======== -->
-  <!-- ============================================== -->
-  <div id="projectsDbModal">
-    <div class="projects-db-card">
-        <div class="projects-db-header">
-            <h2>客戶/機種資料庫管理</h2>
-            <button class="btn-close-modal" onclick="closeProjectsDbModal()" title="關閉">&times;</button>
-        </div>
-        <div class="projects-db-body">
-            <!-- Left Panel: Customer Management -->
-            <div class="db-panel">
-                <h3>🏢 客戶管理</h3>
-                <div class="form-group">
-                    <label for="txtNewCustomer">新增客戶</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="txtNewCustomer" class="form-control" placeholder="例如: Stellantis">
-                        <button class="btn-db primary" onclick="addCustomer()">新增</button>
-                    </div>
-                </div>
-                <div class="db-table-wrap">
-                    <table class="db-table">
-                        <thead><tr><th>客戶名稱</th><th style="width:80px">操作</th></tr></thead>
-                        <tbody id="customersTbody"></tbody>
-                    </table>
-                </div>
-            </div>
-            <!-- Right Panel: Model Management -->
-            <div class="db-panel">
-                <h3>🚗 機種管理</h3>
-                <div class="form-group">
-                    <label for="modelCustomerSelect">選擇客戶</label>
-                    <select id="modelCustomerSelect" class="form-control" onchange="renderModelsTable()"></select>
-                </div>
-                <div class="form-group">
-                    <label for="txtNewModel">新增機種</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="txtNewModel" class="form-control" placeholder="例如: EPS-G3">
-                        <button class="btn-db primary" onclick="addModel()">新增</button>
-                    </div>
-                </div>
-                <div class="db-table-wrap">
-                    <table class="db-table">
-                        <thead><tr><th>機種名稱</th><th style="width:80px">操作</th></tr></thead>
-                        <tbody id="modelsTbody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+
+  <!-- 管理員密碼驗證彈出視窗 (Modal) -->
+  <div id="adminModal" class="modal-overlay" onclick="if(event.target===this) closeAdminModal()">
+    <div class="modal-content">
+      <h3><i class="fa-solid fa-shield-halved" style="color: #2563eb;"></i> 管理員安全驗證</h3>
+      <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">請輸入管理員密碼以獲取當季的授權碼：</p>
+      <input type="password" id="adminPwdInput" placeholder="請輸入管理員密碼..." onkeydown="if(event.key==='Enter') submitAdminCheck()">
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" onclick="closeAdminModal()">取消</button>
+        <button class="modal-btn modal-btn-confirm" onclick="submitAdminCheck()">確認驗證</button>
+      </div>
     </div>
   </div>
 
-  <!-- Main workspace -->
+  <!-- 入口網主頁主結構 -->
   <div class="portal-container">
+    <!-- 側邊欄導覽 -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="brand-row">
-          <div class="brand-small-mark">DT</div>
-          <div>
-            <h2>Design Tools</h2>
-            <p>ENGINEERING CALCULATION &amp; DESIGN</p>
-          </div>
+        <div class="logo">
+          <i class="fa-solid fa-gears"></i>
+          <span>Taigene RD</span>
         </div>
+        <p class="app-subtitle">工程計算與模擬門戶</p>
       </div>
 
-<nav class="menu-scroll" aria-label="工程工具選單">
-  <div class="menu-group">
-    <div class="menu-title">軸孔配合與壓入設計</div>
+      <nav class="menu">
+        <div class="menu-group">設計與計算工具</div>
+        <a href="#" class="menu-item active" onclick="loadModule('modules/sim1_basic.html', this)">
+          <i class="fa-solid fa-chart-line"></i> 基礎無刷馬達模擬 (SIM 1)
+        </a>
+        <a href="#" class="menu-item" onclick="loadModule('modules/sim2_advanced.html', this)">
+          <i class="fa-solid fa-calculator"></i> 進階動態響應模擬 (SIM 2)
+        </a>
+        <a href="#" class="menu-item" onclick="loadModule('modules/torque_dynamics_calc.html', this)">
+          <i class="fa-solid fa-gauge-high"></i> 扭矩與動力學計算
+        </a>
+        <a href="#" class="menu-item" onclick="loadModule('modules/centrifugal.html', this)">
+          <i class="fa-solid fa-arrow-rotate-right"></i> 離心力材料極限計算
+        </a>
+        <a href="#" class="menu-item" onclick="loadModule('modules/physics_calc.html', this)">
+          <i class="fa-solid fa-flask"></i> 基本物理量計算
+        </a>
 
-    <div class="menu-item active"
-         onclick="loadModule('modules/sim1_basic.html', this)">
-      <span class="menu-icon">🔩</span>
-      <span>仿真 1：過盈應力（基礎版）</span>
-    </div>
+        <div class="menu-group">公差與規格分析</div>
+        <a href="#" class="menu-item" onclick="loadModule('modules/tolerance_calc.html', this)">
+          <i class="fa-solid fa-ruler-combined"></i> 軸孔配合公差計算 (ISO)
+        </a>
+        <a href="#" class="menu-item" onclick="loadModule('modules/tolerance_converter.html', this)">
+          <i class="fa-solid fa-arrows-spin"></i> 英制毫米公差轉換
+        </a>
 
-          <div class="menu-item" onclick="loadModule('modules/sim2_advanced.html', this)">
-		<span class="menu-icon">🌀</span>
-		<span>仿真 2：熱／旋轉分析（高階版）</span>
-		</div>
-        </div>
-
-        <div class="menu-group">
-	<div class="menu-title">公差配合與專用計算</div>
-	<div class="menu-item" onclick="loadModule('modules/tolerance_calc.html', this)">
-		<span class="menu-icon">📏</span>
-		<span>尺寸公差及配合度計算</span>
-	</div>
-
-	<div class="menu-item" onclick="loadModule('modules/centrifugal.html', this)">
-		<span class="menu-icon">🌀</span>
-		<span>轉子高速離心力計算</span>
-	</div>
-
-	<div class="menu-item" onclick="loadModule('modules/physics_calc.html', this)">
-		<span class="menu-icon">⚙️</span>
-		<span>物理計算器</span>
-	</div>
-
-	<div class="menu-item" onclick="loadModule('modules/unit_converter.html', this)">
-		<span class="menu-icon">🔄</span>
-		<span>工程單位轉換工具</span>
-	</div>
-
-	<div class="menu-item" onclick="loadModule('modules/torque_dynamics_calc.html', this)">
-		<span class="menu-icon">⚡</span>
-		<span>轉速與扭矩動力學計算</span>
-	</div>
-          
-          <div class="menu-item" onclick="loadModule('modules/tolerance_converter.html', this)"><span class="menu-icon">🔄</span><span>公差換算小工具</span></div>
-        </div>
-
-        <div class="menu-group">
-          <div class="menu-title">共用資料庫與規範</div>
-          <div class="menu-item" onclick="loadModule('modules/design_rules.html', this)"><span class="menu-icon">📐</span><span>設計規範資料庫 (Design Rules)</span></div>
-          <div class="menu-item" onclick="openProjectsDbModal()"><span class="menu-icon">🗂️</span><span>客戶/機種資料庫管理</span></div>
-          <div class="menu-item" onclick="loadModule('modules/materials_db.html', this)"><span class="menu-icon">📚</span><span>材料資料庫管理</span></div>
-        </div>
+        <div class="menu-group">數據庫與規範</div>
+        <a href="#" class="menu-item" onclick="loadModule('modules/materials_db.html', this)">
+          <i class="fa-solid fa-database"></i> 常用材料特性數據庫
+        </a>
+        <a href="#" class="menu-item" onclick="loadModule('modules/projects_db.html', this)">
+          <i class="fa-solid fa-folder-open"></i> 歷史開發專案檢索
+        </a>
+        <a href="#" class="menu-item" onclick="loadModule('modules/design_rules.html', this)">
+          <i class="fa-solid fa-book"></i> 馬達設計規範導則
+        </a>
+        <a href="#" class="menu-item" onclick="loadModule('modules/unit_converter.html', this)">
+          <i class="fa-solid fa-repeat"></i> 工程單位換算工具
+        </a>
       </nav>
+
+      <div class="sidebar-footer" onclick="lockPortal()">
+        <i class="fa-solid fa-lock"></i> 鎖定系統門戶
+      </div>
     </aside>
 
-    <main class="main-workspace">
-      <!-- 登入成功前 iframe 預設留空 -->
-      <iframe id="workFrame" src="about:blank" title="Design Tools 工作區"></iframe>
+    <!-- 主顯示區域 -->
+    <main class="main-content">
+      <header class="content-header">
+        <div class="breadcrumb">
+          <span id="parentCategory">設計與計算工具</span>
+          <i class="fa-solid fa-chevron-right separator"></i>
+          <span id="currentModuleTitle" class="active">基礎無刷馬達模擬 (SIM 1)</span>
+        </div>
+        <div class="header-actions">
+          <span class="user-badge"><i class="fa-solid fa-user-gear"></i> Taigene Engineer</span>
+        </div>
+      </header>
+
+      <!-- 嵌入模組內容的 iframe -->
+      <section class="iframe-wrapper">
+        <iframe id="workFrame" name="workFrame" src="about:blank"></iframe>
+      </section>
     </main>
   </div>
 
-  <!-- IMPORTANT: This must be placed before the main script block -->
-  <script src="assets/js/project_db.js"></script>
-
+  <!-- JavaScript 邏輯控制 -->
   <script>
-    // --- Standard Login & Navigation Logic (No changes) ---
+    // 1. CRC32 演算法實作 (用於本地端動態生成與驗證密碼)
     function crc32(s) {
       var c, t = [];
       for (var n = 0; n < 256; n++) {
         c = n;
-        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        for (var k = 0; k < 8; k++) {
+          c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        }
         t[n] = c;
       }
       var crc = -1;
-      for (var i = 0; i < s.length; i++) crc = (crc >>> 8) ^ t[(crc ^ s.charCodeAt(i)) & 0xFF];
+      for (var i = 0; i < s.length; i++) {
+        crc = (crc >>> 8) ^ t[(crc ^ s.charCodeAt(i)) & 0xFF];
+      }
       return (crc ^ (-1)) >>> 0;
     }
 
-    function getISOWeek() {
-      var d = new Date(); d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-      var w1 = new Date(d.getFullYear(), 0, 4);
-      return 1 + Math.round(((d.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+    // 2. 獲取每 3 個月 (按季度 Q1~Q4) 自動變更的授權碼
+    function getQuarterPassword() {
+      var d = new Date();
+      var yr = String(d.getFullYear()).slice(-2); // 取得年份後兩位，如 "26"
+      var quarter = Math.floor(d.getMonth() / 3) + 1; // 1, 2, 3, 4 季度
+      
+      // 混淆鹽值 (Taigene 特用混淆，必須與 _middleware.js 完美保持一致)
+      var raw = yr + "Q" + quarter + "taigene5pj6"; 
+      var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+      var res = "";
+      for (var i = 1; i <= 6; i++) {
+        res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
+      }
+      return res;
     }
 
-function getQuarterPassword() {
-  var d = new Date();
-  var yr = String(d.getFullYear()).slice(-2);
-  var quarter = Math.floor(d.getMonth() / 3) + 1; // 1 ~ 4 季度
-  var raw = yr + "Q" + quarter + "taigene5pj6"; // 與 Worker 一致的鹽值
-  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-  var res = "";
-  for (var i = 1; i <= 6; i++) {
-    res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
-  }
-  return res;
-}
-
-function verifyPwd() {
-  var input = document.getElementById('userPwd').value.trim();
-  var correctPwd = getQuarterPassword();
-
-  if (input === correctPwd) {
-    // 寫入 Cookie，有效期設為 1 天 (或自訂)
-    document.cookie = "portal_auth_token=" + correctPwd + "; path=/; max-age=86400; SameSite=Strict";
-
-    sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
-    document.getElementById('lockOverlay').style.display = 'none';
-    var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
-    if (firstItem) loadModule('modules/sim1_basic.html', firstItem);
-  } else {
-    alert('授權碼錯誤，請重新輸入。');
-    document.getElementById('userPwd').value = '';
-    document.getElementById('userPwd').focus();
-  }
-}
-
-// 管理員功能：直接驗證管理密碼並產出當前的授權碼
-function submitAdminCheck() {
-  var adminPwd = document.getElementById('adminPwdInput').value.trim();
-  if (adminPwd === "0315") { // 管理密碼
-    var pwd = getQuarterPassword(); // 取得本季授權碼
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(pwd).then(function () {
-        alert('當前 3 個月授權碼為：' + pwd + '\n\n授權碼已複製到剪貼簿。');
-      }).catch(function () {
-        alert('當前 3 個月授權碼為：' + pwd);
-      });
-    } else {
-      alert('當前 3 個月授權碼為：' + pwd);
+    // 3. 驗證使用者輸入的當季授權碼
+    function verifyPwd() {
+      var input = document.getElementById('userPwd').value.trim();
+      var correctPwd = getQuarterPassword();
+      
+      if (input === correctPwd) {
+        // 【核心安全性修正】: 將正確授權碼寫入 Cookie，效期 1 天 (86400秒)
+        // 如此一來，後續 iframe 請求 modules/*.html 時，瀏覽器會自動附加 Cookie，Cloudflare 便能完美驗證放行
+        document.cookie = "portal_auth_token=" + correctPwd + "; path=/; max-age=86400; SameSite=Strict; Secure";
+        
+        sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
+        
+        // 隱藏登入遮罩並載入預設模組
+        document.getElementById('lockOverlay').style.display = 'none';
+        var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
+        if (firstItem) {
+          firstItem.click();
+        }
+      } else {
+        alert('授權密碼錯誤，請重新輸入。');
+        document.getElementById('userPwd').value = '';
+        document.getElementById('userPwd').focus();
+      }
     }
-    closeAdminModal();
-  } else {
-    alert('管理員密碼錯誤。');
-  }
-}
 
+    // 4. 安全鎖定功能 (登出並清除憑證與 Cookie)
+    function lockPortal() {
+      sessionStorage.removeItem('taigene_portal_auth');
+      // 清除驗證 Cookie (將效期設為過去的時間)
+      document.cookie = "portal_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Strict; Secure";
+      
+      document.getElementById('userPwd').value = '';
+      document.getElementById('workFrame').src = 'about:blank';
+      document.getElementById('lockOverlay').style.display = 'flex';
+      document.getElementById('userPwd').focus();
+    }
+
+    // 5. 模組動態切換載入
     function loadModule(url, element) {
-      document.querySelectorAll('.menu-item').forEach(function (el) { el.classList.remove('active'); });
-      if (element) element.classList.add('active');
+      // 安全機制：載入前檢查 sessionStorage 與 Cookie 狀態
+      var auth = sessionStorage.getItem('taigene_portal_auth');
+      var hasCookie = document.cookie.split(';').some(function(item) {
+        return item.trim().startsWith('portal_auth_token=');
+      });
+
+      if (!auth || !hasCookie) {
+        lockPortal();
+        return;
+      }
+
+      // 切換側邊選單 Active 狀態
+      document.querySelectorAll('.menu-item').forEach(function(item) {
+        item.classList.remove('active');
+      });
+      element.classList.add('active');
+
+      // 更新麵包屑與導覽標題
+      var groupName = element.closest('.menu').querySelector('.menu-group') ? 
+                      element.previousElementSibling : null;
+      
+      // 尋找當前節點所屬的群組名稱
+      var parentText = "設計與計算工具";
+      var prev = element.previousElementSibling;
+      while (prev) {
+        if (prev.classList.contains('menu-group')) {
+          parentText = prev.textContent;
+          break;
+        }
+        prev = prev.previousElementSibling;
+      }
+      
+      document.getElementById('parentCategory').textContent = parentText;
+      document.getElementById('currentModuleTitle').textContent = element.textContent.trim();
+
+      // 將 iframe 的 src 指向目標網頁
       document.getElementById('workFrame').src = url;
     }
 
-    /* ----------------------------------------------- */
-    /* --- NEW: Projects DB Modal Management Logic --- */
-    /* ----------------------------------------------- */
-    function openProjectsDbModal() {
-        renderCustomersTable();
-        populateModelCustomerSelect();
-        renderModelsTable();
-        document.getElementById('projectsDbModal').style.display = 'flex';
+    // 6. 管理員驗證與授權碼獲取功能
+    function openAdminModal() {
+      document.getElementById('adminModal').style.display = 'flex';
+      document.getElementById('adminPwdInput').value = '';
+      document.getElementById('adminPwdInput').focus();
     }
 
-    function closeProjectsDbModal() {
-        document.getElementById('projectsDbModal').style.display = 'none';
+    function closeAdminModal() {
+      document.getElementById('adminModal').style.display = 'none';
     }
 
-    function renderCustomersTable() {
-        const data = getProjectData();
-        const tbody = document.getElementById('customersTbody');
-        tbody.innerHTML = '';
-        Object.keys(data).sort().forEach(cust => {
-            const tr = document.createElement('tr');
-            const tdName = `<td>${cust}</td>`;
-            let tdAction = '<td class="action-cell">';
-            if (cust !== "無") {
-                tdAction += `<button class="btn-db danger" onclick="deleteCustomer('${cust}')">刪除</button>`;
-            }
-            tdAction += '</td>';
-            tr.innerHTML = tdName + tdAction;
-            tbody.appendChild(tr);
-        });
-    }
-
-    function populateModelCustomerSelect() {
-        const data = getProjectData();
-        const select = document.getElementById('modelCustomerSelect');
-        const currentValue = select.value;
-        select.innerHTML = '';
-        Object.keys(data).sort().forEach(cust => {
-            if (cust !== "無") {
-                select.appendChild(new Option(cust, cust));
-            }
-        });
-        if (Array.from(select.options).some(o => o.value === currentValue)) {
-            select.value = currentValue;
+    function submitAdminCheck() {
+      var adminPwd = document.getElementById('adminPwdInput').value.trim();
+      // 此處設定您的管理員認證密碼 (可自由更改)
+      if (adminPwd === "0315") { 
+        var currentAuthCode = getQuarterPassword(); // 計算當期(3個月更新一次)的正確授權碼
+        
+        // 嘗試自動複製授權碼至剪貼簿
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(currentAuthCode).then(function () {
+            alert('【管理員驗證成功】\n\n當前的 3 個月季授權碼為： ' + currentAuthCode + '\n\n授權碼已成功複製至剪貼簿！');
+          }).catch(function () {
+            alert('【管理員驗證成功】\n\n當前的 3 個月季授權碼為： ' + currentAuthCode);
+          });
+        } else {
+          alert('【管理員驗證成功】\n\n當前的 3 個月季授權碼為： ' + currentAuthCode);
         }
+        closeAdminModal();
+      } else {
+        alert('管理員密碼錯誤，拒絕存取。');
+        document.getElementById('adminPwdInput').value = '';
+        document.getElementById('adminPwdInput').focus();
+      }
     }
 
-    function renderModelsTable() {
-        const customer = document.getElementById('modelCustomerSelect').value;
-        const tbody = document.getElementById('modelsTbody');
-        tbody.innerHTML = '';
+    // 7. 初始化頁面載入檢查
+    window.onload = function() {
+      var auth = sessionStorage.getItem('taigene_portal_auth');
+      var hasCookie = document.cookie.split(';').some(function(item) {
+        return item.trim().startsWith('portal_auth_token=');
+      });
 
-        if (!customer) {
-            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#9ca3af;">請從上方選擇一個客戶</td></tr>';
-            return;
+      if (auth && hasCookie) {
+        document.getElementById('lockOverlay').style.display = 'none';
+        var activeItem = document.querySelector('.menu-item.active');
+        if (activeItem) {
+          loadModule(activeItem.getAttribute('onclick').match(/'([^']+)'/), activeItem);
         }
-
-        const data = getProjectData();
-        const models = data[customer] || [];
-        models.forEach(model => {
-            const tr = document.createElement('tr');
-            const tdName = `<td>${model}</td>`;
-            let tdAction = '<td class="action-cell">';
-             if (model !== "無") {
-                tdAction += `<button class="btn-db danger" onclick="deleteModel('${customer}', '${model}')">刪除</button>`;
-            }
-            tdAction += '</td>';
-            tr.innerHTML = tdName + tdAction;
-            tbody.appendChild(tr);
-        });
-    }
-
-    // 新增客戶
-    function addCustomer() {
-        const input = document.getElementById('txtNewCustomer');
-        const name = input.value.trim();
-        if (!name) return alert("請輸入客戶名稱！");
-
-        const data = getProjectData();
-        if (data[name]) return alert("此客戶名稱已存在！");
-
-        data[name] = ["無"];
-        saveProjectData(data);
-        input.value = '';
-
-        renderCustomersTable();
-        populateModelCustomerSelect();
-    }
-    
-    // 刪除客戶
-    function deleteCustomer(customer) {
-        if (!confirm(`⚠️ 警告：確定要刪除客戶 [${customer}] 嗎？\n其名下所有機種也將一併被刪除！`)) return;
-        const data = getProjectData();
-        delete data[customer];
-        saveProjectData(data);
-        renderCustomersTable();
-        populateModelCustomerSelect();
-        renderModelsTable();
-    }
-    
-    // 新增機種
-    function addModel() {
-        const customer = document.getElementById('modelCustomerSelect').value;
-        if (!customer) return alert("請先從下拉選單選擇要新增機種的客戶！");
-        const input = document.getElementById('txtNewModel');
-        const model = input.value.trim();
-        if (!model) return alert("請輸入機種名稱！");
-
-        const data = getProjectData();
-        if (!data[customer]) data[customer] = [];
-        if (data[customer].includes(model)) return alert("此機種已存在於該客戶底下！");
-
-        data[customer].push(model);
-        data[customer].sort();
-        saveProjectData(data);
-        input.value = '';
-        renderModelsTable();
-    }
-
-    // 刪除機種
-    function deleteModel(customer, model) {
-        if (!confirm(`確定要刪除客戶 [${customer}] 的機種 [${model}] 嗎？`)) return;
-        const data = getProjectData();
-        if (data[customer]) {
-            data[customer] = data[customer].filter(m => m !== model);
-            saveProjectData(data);
-            renderModelsTable();
-        }
-    }
+      } else {
+        lockPortal();
+      }
+    };
   </script>
 </body>
 </html>
