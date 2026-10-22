@@ -199,8 +199,8 @@
     <div class="pwd-card">
       <div class="brand-mark">DT</div>
       <div class="pwd-title">Design Tools</div>
-      <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本季授權碼以存取工程計算模組</div>
-      <input type="password" id="userPwd" class="pwd-input" placeholder="輸入 10 位季度授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
+      <div class="pwd-subtitle">Engineering Calculation &amp; Design<br>請輸入本週授權碼以存取工程計算模組</div>
+      <input type="password" id="userPwd" class="pwd-input" placeholder="輸入 6 位授權碼" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPwd()">
       <button class="btn-login" onclick="verifyPwd()">登入工作區</button>
       <button class="btn-admin" onclick="openAdminModal()" aria-label="管理員設定" title="管理員設定">⚙</button>
     </div>
@@ -210,7 +210,7 @@
   <div id="adminModal">
     <div class="admin-card">
       <div style="font-weight:750; font-size:16px; margin-bottom:7px; color:#111827;">管理員驗證</div>
-      <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後查詢並複製本季授權碼</div>
+      <div style="font-size:12px; line-height:1.6; color:#64748b;">驗證後產生並複製本週授權碼</div>
       <input type="password" id="adminPwdInput" class="admin-input" placeholder="輸入管理密碼" onkeydown="if(event.key==='Enter') submitAdminCheck()">
       <div class="admin-actions">
         <button class="btn-confirm" onclick="submitAdminCheck()">確認</button>
@@ -346,40 +346,49 @@
   </div>
 
   <!-- IMPORTANT: This must be placed before the main script block -->
+  <script src="assets/js/project_db.js"></script>
 
   <script>
-    // Login and authorization are verified by the Cloudflare Worker.
-    let projectDbScriptLoaded = false;
-
-    function loadProjectDbScript() {
-      if (projectDbScriptLoaded) return Promise.resolve();
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'assets/js/project_db.js';
-        script.onload = () => { projectDbScriptLoaded = true; resolve(); };
-        script.onerror = () => reject(new Error('無法載入專案資料庫程式。'));
-        document.body.appendChild(script);
-      });
+    // --- Standard Login & Navigation Logic (No changes) ---
+    function crc32(s) {
+      var c, t = [];
+      for (var n = 0; n < 256; n++) {
+        c = n;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c;
+      }
+      var crc = -1;
+      for (var i = 0; i < s.length; i++) crc = (crc >>> 8) ^ t[(crc ^ s.charCodeAt(i)) & 0xFF];
+      return (crc ^ (-1)) >>> 0;
     }
 
-    async function verifyPwd() {
-      const input = document.getElementById('userPwd').value.trim();
-      try {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          cache: 'no-store',
-          body: JSON.stringify({ code: input })
-        });
-        const result = await response.json();
-        if (!response.ok || !result.ok) throw new Error(result.error || '授權碼錯誤或已過期。');
+    function getISOWeek() {
+      var d = new Date(); d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+      var w1 = new Date(d.getFullYear(), 0, 4);
+      return 1 + Math.round(((d.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+    }
+
+    function getWeeklyPassword() {
+      var yr = String(new Date().getFullYear()).slice(-2);
+      var wk = getISOWeek();
+      var wkStr = wk < 10 ? '0' + wk : String(wk);
+      var raw = yr + wkStr + "5pj6fm4";
+      var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+      var res = "";
+      for (var i = 1; i <= 6; i++) res += chars.charAt(Math.abs(crc32(raw + i)) % chars.length);
+      return res;
+    }
+
+    function verifyPwd() {
+      var input = document.getElementById('userPwd').value.trim();
+      if (input === getWeeklyPassword()) {
+        sessionStorage.setItem('taigene_portal_auth', 'AUTHORIZED_' + new Date().getTime());
         document.getElementById('lockOverlay').style.display = 'none';
-        await loadProjectDbScript();
-        const firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
+        var firstItem = document.querySelector('.menu-item.active') || document.querySelector('.menu-item');
         if (firstItem) loadModule('modules/sim1_basic.html', firstItem);
-      } catch (error) {
-        alert(error.message || '登入失敗，請稍後再試。');
+      } else {
+        alert('授權碼錯誤，請重新輸入。');
         document.getElementById('userPwd').value = '';
         document.getElementById('userPwd').focus();
       }
@@ -395,33 +404,22 @@
       document.getElementById('adminModal').style.display = 'none';
     }
 
-    async function submitAdminCheck() {
-      const adminPwd = document.getElementById('adminPwdInput').value;
-      try {
-        const response = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          cache: 'no-store',
-          body: JSON.stringify({ password: adminPwd })
-        });
-        const result = await response.json();
-        if (!response.ok || !result.ok) throw new Error(result.error || '管理員驗證失敗。');
-        const expires = new Date(result.expiresAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-        const message = `${result.quarter} 授權碼：${result.code}\n有效期限：${expires}（台灣時間）`;
+    function submitAdminCheck() {
+      var adminPwd = document.getElementById('adminPwdInput').value.trim();
+      if (adminPwd === "0315") {
+        var pwd = getWeeklyPassword();
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          try {
-            await navigator.clipboard.writeText(result.code);
-            alert(message + '\n\n授權碼已複製到剪貼簿。');
-          } catch {
-            alert(message);
-          }
+          navigator.clipboard.writeText(pwd).then(function () {
+            alert('本週授權碼為：' + pwd + '\n\n授權碼已複製到剪貼簿。');
+          }).catch(function () {
+            alert('本週授權碼為：' + pwd);
+          });
         } else {
-          alert(message);
+          alert('本週授權碼為：' + pwd);
         }
         closeAdminModal();
-      } catch (error) {
-        alert(error.message || '管理員驗證失敗，請稍後再試。');
+      } else {
+        alert('管理員密碼錯誤。');
       }
     }
 
